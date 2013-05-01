@@ -39,6 +39,7 @@
 
 #include "audio.h"
 #include "local.h"
+#include "equalizerr.h"
 
 extern size_t bufferblock;
 
@@ -144,9 +145,9 @@ extern int playlimit;
 
 /* why extern? */
 extern void prepare_audioinfo(mpg123_handle *mh, audio_output_t *ao);
-extern int play_frame(void);
+extern int play_frame(mpg123_handle *mh, audio_output_t *ao);
 
-extern int control_generic(mpg123_handle *fr);
+extern int control_generic(mpg123_handle *fr, audio_output_t *ao);
 
 /* Eh... I see duplicated definitions. Clean up after merge! */
 extern int cdr_open(audio_output_t *);
@@ -162,13 +163,17 @@ extern struct parameter param;
 /* avoid the SIGINT in terminal control */
 void next_track(void);
 void prev_track(void);
-int  open_track(char *fname);
-void close_track(void);
+int  open_track(mpg123_handle *mh, char *fname);
+void close_track(mpg123_handle *mh);
 void set_intflag(void);
-
+#ifdef __cplusplus
+extern "C" {
+#endif
 /* equalizer... success is 0, failure -1 */
 int load_equalizer(mpg123_handle *mh);
-
+#ifdef __cplusplus
+}
+#endif
 void continue_msg(const char *name);
 
 #endif 

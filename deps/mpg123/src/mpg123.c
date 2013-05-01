@@ -507,7 +507,7 @@ topt opts[] = {
  *   Change the playback sample rate.
  *   Consider that changing it after starting playback is not covered by gapless code!
  */
-static void reset_audio(long rate, int channels, int format)
+static void reset_audio(audio_output_t *ao, long rate, int channels, int format)
 {
 #ifndef NOXFERMEM
 	if (param.usebuffer) {
@@ -551,7 +551,7 @@ static void reset_audio(long rate, int channels, int format)
 #endif
 }
 
-static int open_track_fd (void)
+static int open_track_fd (mpg123_handle *mh)
 {
 	/* Let reader handle invalid filept */
 	if(mpg123_open_fd(mh, filept) != MPG123_OK)
@@ -566,7 +566,7 @@ static int open_track_fd (void)
 }
 
 /* 1 on success, 0 on failure */
-int open_track(char *fname)
+int open_track(mpg123_handle *mh, char *fname)
 {
 	filept=-1;
 	httpdata_reset(&htd);
@@ -578,7 +578,7 @@ int open_track(char *fname)
 #ifdef WIN32
 		_setmode(STDIN_FILENO, _O_BINARY);
 #endif
-		return open_track_fd();
+		return open_track_fd(mh);
 	}
 	else if (!strncmp(fname, "http://", 7)) /* http stream */
 	{
@@ -626,7 +626,7 @@ int open_track(char *fname)
 	/* Now hook up the decoder on the opened stream or the file. */
 	if(network_sockets_used) 
 	{
-		return open_track_fd();
+		return open_track_fd(mh);
 	}
 	else if(mpg123_open(mh, fname) != MPG123_OK)
 	{
@@ -640,7 +640,7 @@ int open_track(char *fname)
 }
 
 /* for symmetry */
-void close_track(void)
+void close_track(mpg123_handle *mh)
 {
 	mpg123_close(mh);
 #if defined (WANT_WIN32_SOCKETS)
@@ -655,7 +655,7 @@ void close_track(void)
 }
 
 /* return 1 on success, 0 on failure */
-int play_frame(void)
+int play_frame(mpg123_handle *mh, audio_output_t *ao)
 {
 	unsigned char *audio;
 	int mc;
@@ -709,7 +709,7 @@ int play_frame(void)
 				if(param.verbose) print_header(mh);
 				else print_header_compact(mh);
 			}
-			reset_audio(rate, channels, format);
+			reset_audio(ao, rate, channels, format);
 		}
 	}
 	return 1;
@@ -1024,7 +1024,7 @@ int main(int sys_argc, char ** sys_argv)
 
 	if(param.remote) {
 		int ret;
-		ret = control_generic(mh);
+		ret = control_generic(mh, ao);
 		safe_exit(ret);
 	}
 #ifdef HAVE_TERMIOS
@@ -1061,7 +1061,7 @@ int main(int sys_argc, char ** sys_argv)
 
 		debug1("Going to play %s", strcmp(fname, "-") ? fname : "standard input");
 
-		if(intflag || !open_track(fname))
+		if(intflag || !open_track(mh, fname))
 		{
 #ifdef HAVE_TERMIOS
 			/* We need the opportunity to cancel in case of --loop -1 . */
@@ -1154,7 +1154,7 @@ int main(int sys_argc, char ** sys_argv)
 					break;
 				}
 			}
-			if(!play_frame()) break;
+			if(!play_frame(mh, ao)) break;
 			if(!param.quiet)
 			{
 				meta = mpg123_meta_check(mh);

@@ -14,6 +14,10 @@
 #define _HTTPGET_H_
 #include "mpg123.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+    
 /* Pulled in by mpg123app.h! */
 
 struct httpdata
@@ -62,5 +66,9 @@ extern unsigned long proxyip;
 /* takes url and content type string address, opens resource, returns fd for data, allocates and sets content type */
 extern int http_open (char* url, struct httpdata *hd);
 extern char *httpauth;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

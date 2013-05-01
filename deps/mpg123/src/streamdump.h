@@ -11,10 +11,18 @@
 
 #include "mpg123app.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Open dump stream, if requested, and replace readers.
    Return value is 0 for no error, -1 when bad. */
 int dump_open(mpg123_handle *mh);
 /* Just close... */
 void dump_close(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -7,7 +7,6 @@
 	reworked by Thomas Orgis - it was the entry point for eventually becoming maintainer...
 */
 
-#include "mpg123app.h"
 #include <stdarg.h>
 #include <ctype.h>
 #if !defined (WIN32) || defined (__CYGWIN__)
@@ -18,13 +17,12 @@
 #include <errno.h>
 #include <string.h>
 
+#include "mpg123.h"
 #include "common.h"
 #include "buffer.h"
 #include "genre.h"
 #include "playlist.h"
-#define MODE_STOPPED 0
-#define MODE_PLAYING 1
-#define MODE_PAUSED 2
+#include "control_generic.h"
 
 extern int buffer_pid;
 extern audio_output_t *ao;
@@ -34,6 +32,7 @@ extern audio_output_t *ao;
 int control_file = STDIN_FILENO;
 #else
 #define control_file STDIN_FILENO
+#include <WinSock2.h>
 #ifdef WANT_WIN32_FIFO
 #error Control interface does not work on win32 stdin
 #endif /* WANT_WIN32_FIFO */
@@ -221,10 +220,10 @@ static void generic_load(mpg123_handle *fr, char *arg, int state)
 	}
 	if(mode != MODE_STOPPED)
 	{
-		close_track();
+		close_track(fr);
 		mode = MODE_STOPPED;
 	}
-	if(!open_track(arg))
+	if(!open_track(fr, arg))
 	{
 		generic_sendmsg("E Error opening stream: %s", arg);
 		generic_sendmsg("P 0");
@@ -281,11 +280,138 @@ static void generic_loadlist(mpg123_handle *fr, char *arg)
 
 	/* If we have something to play, play it. */
 	if(thefile) generic_load(fr, thefile, MODE_PLAYING);
-
+    
 	free_playlist(); /* Free memory after it is not needed anymore. */
 }
 
-int control_generic (mpg123_handle *fr)
+EXPORT void mpg123_control_play(mpg123_handle *fr, char* path)
+{
+    generic_load(fr, path, MODE_PLAYING);
+}
+
+EXPORT void mpg123_control_stop(mpg123_handle *fr)
+{
+    if (mode != MODE_STOPPED) {
+        if(param.usebuffer)
+        {
+            buffer_stop();
+            buffer_resync();
+        }
+        close_track(fr);
+        mode = MODE_STOPPED;
+        generic_sendmsg("P 0");
+    } else {
+        generic_sendmsg("P 0");
+    }
+}
+
+EXPORT void mpg123_control_jump(mpg123_handle *fr, char* arg)
+{
+    char *spos;
+    off_t offset;
+    double secs;
+    
+    spos = arg;
+    if(mode == MODE_STOPPED)
+    {
+        generic_sendmsg("E No track loaded!");
+        return;
+    }
+    
+    if(spos[strlen(spos)-1] == 's' && sscanf(arg, "%lf", &secs) == 1) offset = mpg123_timeframe(fr, secs);
+    else offset = atol(spos);
+    /* totally replaced that stuff - it never fully worked
+     a bit usure about why +pos -> spos+1 earlier... */
+    if (spos[0] == '-' || spos[0] == '+') offset += framenum;
+    
+    if(0 > (framenum = mpg123_seek_frame(fr, offset, SEEK_SET)))
+    {
+        generic_sendmsg("E Error while seeking");
+        mpg123_seek_frame(fr, 0, SEEK_SET);
+    }
+    if(param.usebuffer)	buffer_resync();
+    
+    generic_sendmsg("J %d", framenum);
+}
+
+EXPORT void mpg123_control_volume(mpg123_handle *fr, char* arg)
+{
+    double v;
+    mpg123_volume(fr, atof(arg)/100);
+    mpg123_getvolume(fr, &v, NULL, NULL); /* Necessary? */
+    generic_sendmsg("V %f%%", v * 100);
+}
+
+EXPORT void mpg123_control_pause()
+{
+    if(mode != MODE_STOPPED)
+    {
+        if (mode == MODE_PLAYING) {
+            mode = MODE_PAUSED;
+            if(param.usebuffer) buffer_stop();
+            generic_sendmsg("P 1");
+        } else {
+            mode = MODE_PLAYING;
+            if(param.usebuffer) buffer_start();
+            generic_sendmsg("P 2");
+        }
+    } else {
+        generic_sendmsg("P 0");
+    }
+}
+
+void mpg123_control_init(mpg123_handle *fr)
+{
+    outstream = stdout;
+}
+
+int mpg123_control_loop(mpg123_handle *fr, audio_output_t *ao, struct timeval tv, fd_set fds, char silent)
+{
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    FD_ZERO(&fds);
+    FD_SET(control_file, &fds);
+    /* play frame if no command needs to be processed */
+    if (mode == MODE_PLAYING) {
+        if (!play_frame(fr, ao))
+        {
+            /* When the track ended, user may want to keep it open (to seek back),
+             so there is a decision between stopping and pausing at the end. */
+            if(param.keep_open)
+            {
+                mode = MODE_PAUSED;
+                /* Hm, buffer should be stopped already, shouldn't it? */
+                if(param.usebuffer) buffer_stop();
+                generic_sendmsg("P 1");
+            }
+            else
+            {
+                mode = MODE_STOPPED;
+                close_track(fr);
+                generic_sendmsg("P 0");
+            }
+            return mode;
+        }
+        if (init) {
+            print_remote_header(fr);
+            init = 0;
+        }
+        if(silent == 0)
+        {
+            generic_sendstat(fr);
+            if(mpg123_meta_check(fr) & MPG123_NEW_ICY)
+            {
+                char *meta;
+                if(mpg123_icy(fr, &meta) == MPG123_OK)
+                    generic_sendmsg("I ICY-META: %s", meta != NULL ? meta : "<nil>");
+            }
+        }
+    }
+    
+    return mode;
+}
+
+int control_generic (mpg123_handle *fr, audio_output_t *ao)
 {
 	struct timeval tv;
 	fd_set fds;
@@ -353,7 +479,7 @@ int control_generic (mpg123_handle *fr)
 			n = select(32, &fds, NULL, NULL, &tv);
 #endif
 			if (n == 0) {
-				if (!play_frame())
+				if (!play_frame(fr, ao))
 				{
 					/* When the track ended, user may want to keep it open (to seek back),
 					   so there is a decision between stopping and pausing at the end. */
@@ -367,7 +493,7 @@ int control_generic (mpg123_handle *fr)
 					else
 					{
 						mode = MODE_STOPPED;
-						close_track();
+						close_track(fr);
 						generic_sendmsg("P 0");
 					}
 					continue;
@@ -467,33 +593,13 @@ int control_generic (mpg123_handle *fr)
 
 				/* PAUSE */
 				if (!strcasecmp(comstr, "P") || !strcasecmp(comstr, "PAUSE")) {
-					if(mode != MODE_STOPPED)
-					{	
-						if (mode == MODE_PLAYING) {
-							mode = MODE_PAUSED;
-							if(param.usebuffer) buffer_stop();
-							generic_sendmsg("P 1");
-						} else {
-							mode = MODE_PLAYING;
-							if(param.usebuffer) buffer_start();
-							generic_sendmsg("P 2");
-						}
-					} else generic_sendmsg("P 0");
+                    mpg123_control_pause();
 					continue;
 				}
 
 				/* STOP */
 				if (!strcasecmp(comstr, "S") || !strcasecmp(comstr, "STOP")) {
-					if (mode != MODE_STOPPED) {
-						if(param.usebuffer)
-						{
-							buffer_stop();
-							buffer_resync();
-						}
-						close_track();
-						mode = MODE_STOPPED;
-						generic_sendmsg("P 0");
-					} else generic_sendmsg("P 0");
+                    mpg123_control_stop(fr);
 					continue;
 				}
 
@@ -688,41 +794,14 @@ int control_generic (mpg123_handle *fr)
 					}
 					/* JUMP */
 					if (!strcasecmp(cmd, "J") || !strcasecmp(cmd, "JUMP")) {
-						char *spos;
-						off_t offset;
-						double secs;
-
-						spos = arg;
-						if(mode == MODE_STOPPED)
-						{
-							generic_sendmsg("E No track loaded!");
-							continue;
-						}
-
-						if(spos[strlen(spos)-1] == 's' && sscanf(arg, "%lf", &secs) == 1) offset = mpg123_timeframe(fr, secs);
-						else offset = atol(spos);
-						/* totally replaced that stuff - it never fully worked
-						   a bit usure about why +pos -> spos+1 earlier... */
-						if (spos[0] == '-' || spos[0] == '+') offset += framenum;
-
-						if(0 > (framenum = mpg123_seek_frame(fr, offset, SEEK_SET)))
-						{
-							generic_sendmsg("E Error while seeking");
-							mpg123_seek_frame(fr, 0, SEEK_SET);
-						}
-						if(param.usebuffer)	buffer_resync();
-
-						generic_sendmsg("J %d", framenum);
+                        mpg123_control_jump(fr, arg);
 						continue;
 					}
 
 					/* VOLUME in percent */
 					if(!strcasecmp(cmd, "V") || !strcasecmp(cmd, "VOLUME"))
 					{
-						double v;
-						mpg123_volume(fr, atof(arg)/100);
-						mpg123_getvolume(fr, &v, NULL, NULL); /* Necessary? */
-						generic_sendmsg("V %f%%", v * 100);
+                        mpg123_control_volume(fr, arg);
 						continue;
 					}
 

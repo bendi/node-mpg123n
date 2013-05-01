@@ -18,8 +18,8 @@
 	loads for my system, however this may not be true for any hardware/OS out there.
 	Generally, BUFFER_SIZE < 8k || NUM_BUFFERS > 16 || NUM_BUFFERS < 4 are not recommended.
 */
-#define BUFFER_SIZE 0x10000
-#define NUM_BUFFERS 8  /* total 512k roughly 2.5 sec of CD quality sound */
+#define BUFFER_SIZE 0x4000
+#define NUM_BUFFERS 4  /* total 512k roughly 2.5 sec of CD quality sound */
 
 /* Buffer ring queue state */
 struct queue_state
@@ -165,14 +165,18 @@ static void flush_win32(struct audio_output_struct *ao)
 
 	if(!ao || !ao->userptr) return;
 	state = (struct queue_state*)ao->userptr;
+	ao->userptr = 0;
 
 	/* FIXME: The very last output buffer is not played. This could be a problem on the feeding side. */
 	i = 0;
 	z = state->next_buffer - 1;
 	for(i = 0; i < NUM_BUFFERS; i++)
 	{
-		if(!state->buffer_headers[i].dwFlags & WHDR_DONE)
-			WaitForSingleObject(state->play_done_event, INFINITE);
+		//if(!(state->buffer_headers[i].dwFlags & WHDR_DONE)) {
+			fprintf(stdout, "Waiting for close %i ", i);
+			// FIXME: make this non-infinite and we're good to go :)
+			//WaitForSingleObject(state->play_done_event, INFINITE);
+		//}
 
 		waveOutUnprepareHeader(state->waveout, &state->buffer_headers[i], sizeof(WAVEHDR));
 		state->buffer_headers[i].dwFlags = 0;

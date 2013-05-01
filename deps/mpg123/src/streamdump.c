@@ -11,6 +11,10 @@
 #include <errno.h>
 #include "debug.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Stream dump descriptor. */
 static int dump_fd = -1;
 
@@ -72,3 +76,8 @@ void dump_close(void)
 
 	dump_fd = -1;
 }
+
+    
+#ifdef __cplusplus
+}
+#endif

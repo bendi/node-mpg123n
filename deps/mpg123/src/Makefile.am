@@ -32,7 +32,7 @@ mpg123_SOURCES = \
 	libmpg123/compat.c \
 	libmpg123/compat.h \
 	control_generic.c \
-	equalizer.c \
+	equalizerr.c \
 	getlopt.c \
 	getlopt.h \
 	httpget.c \

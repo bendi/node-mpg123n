@@ -18,6 +18,10 @@
 #include "mpg123.h"
 #include "module.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define AUDIO_OUT_HEADPHONES       0x01
 #define AUDIO_OUT_INTERNAL_SPEAKER 0x02
 #define AUDIO_OUT_LINE_OUT         0x04
@@ -101,6 +105,11 @@ void audio_enclist(char** list); /* Make a string of encoding names. */
 	Returns 1 if pitch setting succeeded, 0 otherwise.
 */
 int set_pitch(mpg123_handle *fr, audio_output_t *ao, double new_pitch);
+
+    
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

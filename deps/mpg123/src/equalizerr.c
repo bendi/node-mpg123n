@@ -7,7 +7,12 @@
 */
 
 #include "mpg123app.h"
+#include "equalizerr.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+    
 /* Load the settings from the path in the global variable equalfile.
    If there is no file, restore equalizer defaults. */
 int load_equalizer(mpg123_handle *mh)
@@ -46,3 +51,8 @@ int load_equalizer(mpg123_handle *mh)
 
 	return 0;
 }
+    
+    
+#ifdef __cplusplus
+}
+#endif

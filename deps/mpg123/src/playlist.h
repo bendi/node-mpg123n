@@ -9,6 +9,9 @@
 #define MPG123_PLAYLIST_H
 
 #include "mpg123app.h"
+#if defined (WANT_WIN32_SOCKETS)
+#include <winsock2.h>
+#endif
 
 enum playlist_type { UNKNOWN = 0, M3U, PLS, NO_LIST };
 

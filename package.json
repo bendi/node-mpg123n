@@ -1,6 +1,6 @@
 {
   "name": "mpg123n",
-  "description": "NodeJS native bindings to libmpg123 control_generic.",
+  "description": "NodeJS native bindings to mpg123 'control_generic' command line interface.",
   "keywords": [
     "mpg123",
     "mp3",

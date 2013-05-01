@@ -1,0 +1,19 @@
+{
+  "name": "mpg123n",
+  "description": "NodeJS native bindings to libmpg123 control_generic.",
+  "keywords": [
+    "mpg123",
+    "mp3",
+    "mpeg",
+    "mpg",
+    "encode",
+    "decode"
+  ],
+  "version": "0.0.1",
+  "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
+  "main": "./index.js",
+  "dependencies": {
+    "bindings": "*",
+    "debug": "*"
+  }
+}

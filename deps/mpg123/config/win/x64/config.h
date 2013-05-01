@@ -67,6 +67,10 @@
 
 #define HAVE_LIMITS_H
 
+#ifndef NOXFERMEM
+#define NOXFERMEM
+#endif
+
 #if !defined(__MINGW32__) && (!defined(_MSC_VER) || _MSC_VER<1600)
 #include <BaseTsd.h>
 typedef __int8 int8_t;

@@ -9,8 +9,12 @@
     "encode",
     "decode"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
+    "repository": {
+    "type": "git",
+    "url": "git://github.com/bendi/node-mpg123n.git"
+  },
   "main": "./index.js",
   "dependencies": {
     "bindings": "*",

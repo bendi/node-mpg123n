@@ -44,17 +44,16 @@ player.play(process.argv[2]);
 API
 ------------
 ### Methods
-#### Player.play - path to a file
-#### Player.stop 
-#### Player.pause 
-#### Player.jump - offset in seconds, eg. 10s
-#### Player.volume - volume in percent eg. 10%
-
+ * Player.play - path to a file
+ * Player.stop 
+ * Player.pause 
+ * Player.jump - offset in seconds, eg. 10s
+ * Player.volume - volume in percent eg. 10%
 
 ### Events
-#### play
-#### stop
-#### pause
+ * play
+ * stop
+ * pause
 
 
 

@@ -1,10 +1,12 @@
-//
-//  control_generic.h
-//  mpg123proj
-//
-//  Created by Marek Będkowski on 28.02.2013.
-//  Copyright (c) 2013 Marek Będkowski. All rights reserved.
-//
+/*
+ control_generic.h: control interface for frontends and real console warriors (declaration)
+ 
+ copyright 1997-99,2004-8 by the mpg123 project - free software under the terms of the LGPL 2.1
+ see COPYING and AUTHORS files in distribution or http://mpg123.org
+ initially written by Andreas Neuhaus and Michael Hipp
+ reworked by Thomas Orgis - it was the entry point for eventually becoming maintainer...
+ file created by Marek Bedkowski for the sake of mpg123n nodejs module 
+ */
 
 #ifndef mpg123proj_control_generic_h
 #define mpg123proj_control_generic_h

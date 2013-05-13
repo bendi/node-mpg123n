@@ -55,6 +55,10 @@ API
  * stop
  * pause
 
-
-
+Projects using mpg123n
+------------
+### [Maracuyá - Virutal Jukebox](http://thejsteam.com/marakuja.html)
+ * contains precompiled version of mpg123n
+ * embeds nodejs
+ * utilizes a simple yet powerful interface
 

@@ -3,7 +3,7 @@
 
 /* Define if your architecture wants/needs/can use attribute_align_arg and
    alignment checks. It is for 32bit x86... */
-#define ABI_ALIGN_FUN 1
+/* #undef ABI_ALIGN_FUN */
 
 /* Define to use proper rounding. */
 /* #undef ACCURATE_ROUNDING */
@@ -11,8 +11,14 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
+/* Define if .balign is present. */
+#define ASMALIGN_BALIGN 1
+
+/* Define if .align just takes byte count. */
+/* #undef ASMALIGN_BYTE */
+
 /* Define if .align takes 3 for alignment of 2^3=8 bytes instead of 8. */
-#define ASMALIGN_EXP 1
+/* #undef ASMALIGN_EXP */
 
 /* Define if __attribute__((aligned(16))) shall be used */
 #define CCALIGN 1
@@ -24,10 +30,13 @@
 #define DEFAULT_OUTPUT_MODULE "coreaudio"
 
 /* Define if building with dynamcally linked libmpg123 */
-/* #undef DYNAMIC_BUILD */
+#define DYNAMIC_BUILD 1
+
+/* Use EFBIG as substitude for EOVERFLOW, mingw.org may lack the latter */
+/* #undef EOVERFLOW */
 
 /* Define if FIFO support is enabled. */
-/* #undef FIFO */
+#define FIFO 1
 
 /* Define if frame index should be used. */
 #define FRAME_INDEX 1
@@ -362,10 +371,10 @@
 #define STDC_HEADERS 1
 
 /* Define if modules are enabled */
-/* #undef USE_MODULES */
+#define USE_MODULES 1
 
 /* Version number of package */
-#define VERSION "1.14.4"
+#define VERSION "1.15.1"
 
 /* Define to use Win32 named pipes */
 /* #undef WANT_WIN32_FIFO */

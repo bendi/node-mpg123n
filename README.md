@@ -38,6 +38,9 @@ player.on('stop', function() {
 player.on('pause', function() {
 	console.log('paused!');
 });
+player.on('error', function() {
+	console.log('Houston we have a problem!");
+});
 player.play(process.argv[2]);
 ```
 
@@ -54,6 +57,7 @@ API
  * play
  * stop
  * pause
+ * error
 
 Projects using mpg123n
 ------------

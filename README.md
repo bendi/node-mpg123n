@@ -39,7 +39,7 @@ player.on('pause', function() {
 	console.log('paused!');
 });
 player.on('error', function() {
-	console.log('Houston we have a problem!");
+	console.log('Houston we have a problem!');
 });
 player.play(process.argv[2]);
 ```

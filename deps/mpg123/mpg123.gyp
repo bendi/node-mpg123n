@@ -215,6 +215,14 @@
         ]
       },
       'conditions': [
+      	['mpg123_backend=="pulse"', {
+          'link_settings': {
+            'libraries': [
+              '-lpulse-simple',
+              '-lpulse',
+            ]
+          }
+        }],
         ['mpg123_backend=="alsa"', {
           'link_settings': {
             'libraries': [

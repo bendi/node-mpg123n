@@ -11,14 +11,8 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
-/* Define if .balign is present. */
-#define ASMALIGN_BALIGN 1
-
-/* Define if .align just takes byte count. */
-/* #undef ASMALIGN_BYTE */
-
 /* Define if .align takes 3 for alignment of 2^3=8 bytes instead of 8. */
-/* #undef ASMALIGN_EXP */
+#define ASMALIGN_EXP 1
 
 /* Define if __attribute__((aligned(16))) shall be used */
 #define CCALIGN 1
@@ -30,13 +24,10 @@
 #define DEFAULT_OUTPUT_MODULE "coreaudio"
 
 /* Define if building with dynamcally linked libmpg123 */
-#define DYNAMIC_BUILD 1
-
-/* Use EFBIG as substitude for EOVERFLOW, mingw.org may lack the latter */
-/* #undef EOVERFLOW */
+/* #undef DYNAMIC_BUILD */
 
 /* Define if FIFO support is enabled. */
-#define FIFO 1
+/* #undef FIFO */
 
 /* Define if frame index should be used. */
 #define FRAME_INDEX 1
@@ -120,7 +111,7 @@
 #define HAVE_LOCALE_H 1
 
 /* Define if libltdl is available */
-#define HAVE_LTDL 1
+/* #undef HAVE_LTDL */
 
 /* Define to 1 if you have the <machine/soundcard.h> header file. */
 /* #undef HAVE_MACHINE_SOUNDCARD_H */
@@ -371,7 +362,7 @@
 #define STDC_HEADERS 1
 
 /* Define if modules are enabled */
-#define USE_MODULES 1
+/* #undef USE_MODULES */
 
 /* Version number of package */
 #define VERSION "1.15.1"

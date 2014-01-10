@@ -27,7 +27,7 @@
 /* #undef DYNAMIC_BUILD */
 
 /* Define if FIFO support is enabled. */
-/* #undef FIFO */
+#define FIFO 1
 
 /* Define if frame index should be used. */
 #define FRAME_INDEX 1

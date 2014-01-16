@@ -1,5 +1,5 @@
 /*
-	libmpg123: MPEG Audio Decoder library (version 1.15.1)
+	libmpg123: MPEG Audio Decoder library (version 1.19.0)
 
 	copyright 1995-2010 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
@@ -12,7 +12,7 @@
 
 /* A macro to check at compile time which set of API functions to expect.
    This should be incremented at least each time a new symbol is added to the header. */
-#define MPG123_API_VERSION 37
+#define MPG123_API_VERSION 40
 
 /* These aren't actually in use... seems to work without using libtool. */
 #ifdef BUILD_MPG123_DLL
@@ -175,6 +175,7 @@ enum mpg123_param_flags
 	,MPG123_SKIP_ID3V2 = 0x2000 /**< 10 0000 0000 0000 Do not parse ID3v2 tags, just skip them. */
 	,MPG123_IGNORE_INFOFRAME = 0x4000 /**< 100 0000 0000 0000 Do not parse the LAME/Xing info frame, treat it as normal MPEG data. */
 	,MPG123_AUTO_RESAMPLE = 0x8000 /**< 1000 0000 0000 0000 Allow automatic internal resampling of any kind (default on if supported). Especially when going lowlevel with replacing output buffer, you might want to unset this flag. Setting MPG123_DOWNSAMPLE or MPG123_FORCE_RATE will override this. */
+	,MPG123_PICTURE = 0x10000 /**< 17th bit: Enable storage of pictures from tags (ID3v2 APIC). */
 };
 
 /** choices for MPG123_RVA */
@@ -380,7 +381,7 @@ enum mpg123_enc_enum
 	,MPG123_ENC_UNSIGNED_24 = MPG123_ENC_24|0x2000                   /**< 0110 0000 0000 0000 unsigned 24 bit */
 	,MPG123_ENC_FLOAT_32    = 0x200                                  /**<      0010 0000 0000 32bit float */
 	,MPG123_ENC_FLOAT_64    = 0x400                                  /**<      0100 0000 0000 64bit float */
-	,MPG123_ENC_ANY = ( MPG123_ENC_SIGNED_16  | MPG123_ENC_UNSIGNED_16 | MPG123_ENC_UNSIGNED_8 
+	,MPG123_ENC_ANY = ( MPG123_ENC_SIGNED_16  | MPG123_ENC_UNSIGNED_16 | MPG123_ENC_UNSIGNED_8
 	                  | MPG123_ENC_SIGNED_8   | MPG123_ENC_ULAW_8      | MPG123_ENC_ALAW_8
 	                  | MPG123_ENC_SIGNED_32  | MPG123_ENC_UNSIGNED_32
 	                  | MPG123_ENC_SIGNED_24  | MPG123_ENC_UNSIGNED_24
@@ -564,6 +565,7 @@ EXPORT off_t mpg123_framepos(mpg123_handle *mh);
  * Also, really sample-accurate seeking (meaning that you get the identical sample value after seeking compared to plain decoding up to the position) is only guaranteed when you do not mess with the position code by using MPG123_UPSPEED, MPG123_DOWNSPEED or MPG123_START_FRAME. The first two mainly should cause trouble with NtoM resampling, but in any case with these options in effect, you have to keep in mind that the sample offset is not the same as counting the samples you get from decoding since mpg123 counts the skipped samples, too (or the samples played twice only once)!
  * Short: When you care about the sample position, don't mess with those parameters;-)
  * Also, seeking is not guaranteed to work for all streams (underlying stream may not support it).
+ * And yet another caveat: If the stream is concatenated out of differing pieces (Frankenstein stream), seeking may suffer, too.
  *
  * @{
  */
@@ -762,9 +764,10 @@ EXPORT long mpg123_clip(mpg123_handle *mh);
 /** The key values for state information from mpg123_getstate(). */
 enum mpg123_state
 {
-	 MPG123_ACCURATE = 1 /**< Query if positons are currently accurate (integer value, 0 if false, 1 if true) */
+	 MPG123_ACCURATE = 1 /**< Query if positons are currently accurate (integer value, 0 if false, 1 if true). */
 	,MPG123_BUFFERFILL   /**< Get fill of internal (feed) input buffer as integer byte count returned as long and as double. An error is returned on integer overflow while converting to (signed) long, but the returned floating point value shold still be fine. */
-	,MPG123_FRANKENSTEIN /**< Stream consists of carelessly stitched together files (the leading one featuring gapless info).  */
+	,MPG123_FRANKENSTEIN /**< Stream consists of carelessly stitched together files. Seeking may yield unexpected results (also with MPG123_ACCURATE, it may be confused). */
+	,MPG123_FRESH_DECODER /**< Decoder structure has been updated, possibly indicating changed stream (integer value, 0 if false, 1 if true). Flag is cleared after retrieval. */
 };
 
 /** Get various current decoder/stream state information.
@@ -906,6 +909,45 @@ typedef struct
 	mpg123_string text;        /**< ... */
 } mpg123_text;
 
+/** The picture type values from ID3v2. */
+enum mpg123_id3_pic_type
+{
+	 mpg123_id3_pic_other          =  0
+	,mpg123_id3_pic_icon           =  1
+	,mpg123_id3_pic_other_icon     =  2
+	,mpg123_id3_pic_front_cover    =  3
+	,mpg123_id3_pic_back_cover     =  4
+	,mpg123_id3_pic_leaflet        =  5
+	,mpg123_id3_pic_media          =  6
+	,mpg123_id3_pic_lead           =  7
+	,mpg123_id3_pic_artist         =  8
+	,mpg123_id3_pic_conductor      =  9
+	,mpg123_id3_pic_orchestra      = 10
+	,mpg123_id3_pic_composer       = 11
+	,mpg123_id3_pic_lyricist       = 12
+	,mpg123_id3_pic_location       = 13
+	,mpg123_id3_pic_recording      = 14
+	,mpg123_id3_pic_performance    = 15
+	,mpg123_id3_pic_video          = 16
+	,mpg123_id3_pic_fish           = 17
+	,mpg123_id3_pic_illustration   = 18
+	,mpg123_id3_pic_artist_logo    = 19
+	,mpg123_id3_pic_publisher_logo = 20
+};
+
+/** Sub data structure for ID3v2, for storing picture data including comment.
+ *  This is for the ID3v2 APIC field. You should consult the ID3v2 specification
+ *  for the use of the APIC field ("frames" in ID3v2 documentation, I use "fields"
+ *  here to separate from MPEG frames). */
+typedef struct
+{
+	char type;
+	mpg123_string description;
+	mpg123_string mime_type;
+	size_t size;
+	unsigned char* data;
+} mpg123_picture;
+
 /** Data structure for storing IDV3v2 tags.
  *  This structure is not a direct binary mapping with the file contents.
  *  The ID3v2 text frames are allowed to contain multiple strings.
@@ -928,11 +970,13 @@ typedef struct
 	size_t          texts;        /**< Numer of text fields. */
 	mpg123_text    *extra;        /**< The array of extra (TXXX) fields. */
 	size_t          extras;       /**< Number of extra text (TXXX) fields. */
+	mpg123_picture  *picture;     /**< Array of ID3v2 pictures fields (APIC). */
+	size_t           pictures;    /**< Number of picture (APIC) fields. */
 } mpg123_id3v2;
 
 /** Data structure for ID3v1 tags (the last 128 bytes of a file).
  *  Don't take anything for granted (like string termination)!
- *  Also note the change ID3v1.1 did: comment[28] = 0; comment[19] = track_number
+ *  Also note the change ID3v1.1 did: comment[28] = 0; comment[29] = track_number
  *  It is your task to support ID3v1 only or ID3v1.1 ...*/
 typedef struct
 {
@@ -1045,7 +1089,10 @@ EXPORT int mpg123_getpar(mpg123_pars *mp, enum mpg123_parms type, long *val, dou
   * @{ */
 
 /** Replace default internal buffer with user-supplied buffer.
-  * Instead of working on it's own private buffer, mpg123 will directly use the one you provide for storing decoded audio. */
+  * Instead of working on it's own private buffer, mpg123 will directly use the one you provide for storing decoded audio.
+  * Note that the required buffer size could be bigger than expected from output
+  * encoding if libmpg123 has to convert from primary decoder output (p.ex. 32 bit
+  * storage for 24 bit output. */
 EXPORT int mpg123_replace_buffer(mpg123_handle *mh, unsigned char *data, size_t size);
 
 /** The max size of one frame's decoded output with current settings.

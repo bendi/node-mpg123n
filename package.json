@@ -9,7 +9,7 @@
     "encode",
     "decode"
   ],
-  "version": "0.0.16",
+  "version": "0.0.17",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
     "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
   "binary": {
     "module_name": "bindings",
     "module_path": "./build/Release",
-    "remote_uri": "http://maracuya-jukebox.com/distrib/mpg123n",
+    "remote_uri": "https://mpg123n.s3-us-west-2.amazonaws.com/",
     "template": "{configuration}/{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz"
   }
 }

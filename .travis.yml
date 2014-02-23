@@ -1,15 +1,12 @@
 language: node_js
 node_js:
   - "0.10"
-
 env:
   global:
     - secure: LrWUOYNZhLYCCERTo4mh76m0dhQ6J6q3aLBuKT6oObP5OtTPd3lOYLnE9qg2BHDElBlr6Jk0gN2zhaIsK2Ghtp5ZPD5FOj1PMUmcZfgJGq7LTb+cXSN74hMSiVbqY/IUU4kAE1ycus3MPbj7/qlj18lp5evYtVdoZWKxowDri6k=
     - secure: OZuI6755gPpVcT2C2vCqtCoQ2LqXjQBRY+3n09FM3x8HXcS0gsJPZQIurYrcyZfS4fRjmrlIFHnTJnG+/s+9X0tYPOMD2aUc7YWSrPuW+/NOsY+H8HI9tBsw2mVvQlrzfVGALHrfU9OoZ7+I85SRuNhzuhr5zUBt3YXPx2avMAY=
-
-before_script: 
+before_script:
   - sudo apt-get install libasound2-dev libltdl-dev
   - npm install -g grunt-cli node-pre-gyp@0.4.1
-
 after_script:
   - node-pre-gyp package publish

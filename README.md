@@ -1,4 +1,4 @@
-node-mpg123n
+node-mpg123n [![Build Status](https://travis-ci.org/bendi/node-mpg123n.png?branch=master)](https://travis-ci.org/bendi/node-mpg123n)
 ============
 
 nodejs native bindings to [mpg123](http://mpg123.de) interactive mode (-R option) that compile and run under MSVC++

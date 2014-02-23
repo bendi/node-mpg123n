@@ -7,5 +7,6 @@ env:
 before_script: 
   - sudo apt-get install libasound2-dev libltdl-dev
   - npm install -g grunt-cli node-pre-gyp@0.4.1
-  - npm install
+after_script:
   - node-pre-gyp package publish
+  

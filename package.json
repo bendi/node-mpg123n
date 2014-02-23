@@ -7,7 +7,8 @@
     "mpeg",
     "mpg",
     "encode",
-    "decode"
+    "decode",
+    "bindings"
   ],
   "version": "0.0.18",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",

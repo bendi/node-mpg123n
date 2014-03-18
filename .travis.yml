@@ -7,6 +7,6 @@ env:
     - secure: OZuI6755gPpVcT2C2vCqtCoQ2LqXjQBRY+3n09FM3x8HXcS0gsJPZQIurYrcyZfS4fRjmrlIFHnTJnG+/s+9X0tYPOMD2aUc7YWSrPuW+/NOsY+H8HI9tBsw2mVvQlrzfVGALHrfU9OoZ7+I85SRuNhzuhr5zUBt3YXPx2avMAY=
 before_install:
 - sudo apt-get install libasound2-dev libltdl-dev
-- npm install -g grunt-cli node-pre-gyp@0.4.1
+- npm install -g grunt-cli node-pre-gyp@0.5.5
 after_success:
 - node-pre-gyp package publish

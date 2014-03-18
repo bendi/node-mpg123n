@@ -10,7 +10,7 @@
     "decode",
     "bindings"
   ],
-  "version": "0.0.19",
+  "version": "0.0.20",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
     "repository": {
     "type": "git",
@@ -27,7 +27,7 @@
   "binary": {
     "module_name": "bindings",
     "module_path": "./build/Release",
-    "remote_uri": "https://mpg123n.s3-us-west-2.amazonaws.com",
-    "template": "{configuration}/{module_name}-v{version}-{node_abi}-{platform}-{arch}.tar.gz"
+    "host": "https://mpg123n.s3-us-west-2.amazonaws.com",
+    "remote_path" : "./{configuration}/"
   }
 }

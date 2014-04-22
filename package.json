@@ -20,7 +20,7 @@
   "dependencies": {
     "bindings": "*",
     "debug": "*",
-	"node-pre-gyp": "0.5.5"
+    "node-pre-gyp": "0.5.5"
   },
   "scripts": {
     "install": "node-pre-gyp install --fallback-to-build"

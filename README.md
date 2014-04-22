@@ -61,7 +61,7 @@ API
 
 Projects using mpg123n
 ------------
-### [Maracuyá - Virutal Jukebox](http://maracuya-jukebox.com)
+### [Maracuyá Jukebox](http://maracuya-jukebox.com)
  * contains precompiled version of mpg123n
  * embeds nodejs
  * utilizes a simple yet powerful interface

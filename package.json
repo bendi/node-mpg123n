@@ -19,11 +19,13 @@
   "main": "./index.js",
   "dependencies": {
     "bindings": "*",
-    "debug": "*"
+    "debug": "*",
+	"node-pre-gyp": "0.5.5"
   },
   "scripts": {
     "install": "node-pre-gyp install --fallback-to-build"
   },
+  "bundledDependencies":["node-pre-gyp"],
   "binary": {
     "module_name": "bindings",
     "module_path": "./build/Release",

@@ -7,6 +7,9 @@
 @rem set PATH=node_modules\.bin;%PATH%
 @rem set PATH=%PATH%;c:\Python27
 
+setlocal
+SET PATH=%PATH%;node_modules\node-pre-gyp\bin
+
 @rem 32 bit
 call set NODIST_X64=0
 call nodist use stable
@@ -14,9 +17,7 @@ call node -e "console.log(process.version + ' ' + process.arch)"
 call node-pre-gyp clean
 call npm install --build-from-source
 @rem npm test
-call node-pre-gyp package
-call xcopy build\stage stage /s /e
-call node-pre-gyp clean
+call node-pre-gyp package publish clean
 
 @rem 64 bit
 @rem cannot open input file 'kernel32.lib' http://www.microsoft.com/en-us/download/details.aspx?id=4422
@@ -26,28 +27,4 @@ call node -e "console.log(process.version + ' ' + process.arch)"
 call node-pre-gyp clean
 call npm install --build-from-source
 @rem npm test
-call node-pre-gyp package
-call xcopy build\stage stage /s /e
-call node-pre-gyp clean
-
-@ rem 32 bit v0.8x
-call set NODIST_X64=0
-call nodist use v0.8
-call node -e "console.log(process.version + ' ' + process.arch)"
-call node-pre-gyp clean
-call npm install --build-from-source
-@rem npm test
-call node-pre-gyp package
-call xcopy build\stage stage /s /e
-call node-pre-gyp clean
-
-@rem 64 bit v0.8.x
-call set NODIST_X64=1
-call nodist use v0.8
-call node -e "console.log(process.version + ' ' + process.arch)"
-call node-pre-gyp clean
-call npm install --build-from-source
-@rem npm test
-call node-pre-gyp package
-call xcopy build\stage stage /s /e
-call node-pre-gyp clean
+call node-pre-gyp package publish clean

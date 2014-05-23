@@ -11,8 +11,14 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
+/* Define if .balign is present. */
+#define ASMALIGN_BALIGN 1
+
+/* Define if .align just takes byte count. */
+/* #undef ASMALIGN_BYTE */
+
 /* Define if .align takes 3 for alignment of 2^3=8 bytes instead of 8. */
-#define ASMALIGN_EXP 1
+/* #undef ASMALIGN_EXP */
 
 /* Define if __attribute__((aligned(16))) shall be used */
 /* #undef CCALIGN */
@@ -21,10 +27,13 @@
 /* #undef DEBUG */
 
 /* The default audio output module(s) to use */
-#define DEFAULT_OUTPUT_MODULE "alsa"
+#define DEFAULT_OUTPUT_MODULE "alsa,oss"
 
 /* Define if building with dynamcally linked libmpg123 */
-/* #undef DYNAMIC_BUILD */
+#define DYNAMIC_BUILD 1
+
+/* Use EFBIG as substitude for EOVERFLOW, mingw.org may lack the latter */
+/* #undef EOVERFLOW */
 
 /* Define if FIFO support is enabled. */
 #define FIFO 1
@@ -263,12 +272,10 @@
 #define LT_OBJDIR ".libs/"
 
 /* The suffix for module files. */
-#define MODULE_FILE_SUFFIX ".node"
-
-#define PKGLIBDIR "build/Release"
+#define MODULE_FILE_SUFFIX ".la"
 
 /* Define if network support is enabled. */
-/* #undef NETWORK */
+#define NETWORK 1
 
 /* Define to disable 16 bit integer output. */
 /* #undef NO_16BIT */
@@ -362,10 +369,10 @@
 #define STDC_HEADERS 1
 
 /* Define if modules are enabled */
-/* #undef USE_MODULES */
+#define USE_MODULES 1
 
 /* Version number of package */
-#define VERSION "1.14.4"
+#define VERSION "1.15.3"
 
 /* Define to use Win32 named pipes */
 /* #undef WANT_WIN32_FIFO */

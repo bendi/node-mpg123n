@@ -51,6 +51,7 @@ int load_equalizer(mpg123_handle *mh)
 
 	return 0;
 }
+
     
     
 #ifdef __cplusplus

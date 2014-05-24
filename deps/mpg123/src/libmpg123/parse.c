@@ -1,7 +1,7 @@
 /*
 	parse: spawned from common; clustering around stream/frame parsing
 
-	copyright ?-2012 by the mpg123 project - free software under the terms of the LGPL 2.1
+	copyright ?-2014 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
 	initially written by Michael Hipp & Thomas Orgis
 */
@@ -387,6 +387,13 @@ static int header_mono(unsigned long newhead)
 	return HDR_CHANNEL_VAL(newhead) == MPG_MD_MONO ? TRUE : FALSE;
 }
 
+/* true if the two headers will work with the same decoding routines */
+static int head_compatible(unsigned long fred, unsigned long bret)
+{
+	return ( (fred & HDR_CMPMASK) == (bret & HDR_CMPMASK)
+		&&       header_mono(fred) == header_mono(bret)    );
+}
+
 static void halfspeed_prepare(mpg123_handle *fr)
 {
 	/* save for repetition */
@@ -432,7 +439,7 @@ static int halfspeed_do(mpg123_handle *fr)
 if(ret < 0){ debug1("%s", ret == MPG123_NEED_MORE ? "need more" : "read error"); goto read_frame_bad; } \
 else if(ret == PARSE_AGAIN) goto read_again; \
 else if(ret == PARSE_RESYNC) goto init_resync; \
-else if(ret == PARSE_END) goto read_frame_bad; \
+else if(ret == PARSE_END){ ret=0; goto read_frame_bad; } \
 }
 
 /*
@@ -468,21 +475,6 @@ read_again:
 	if((ret = fr->rd->head_read(fr,&newhead)) <= 0){ debug1("need more? (%i)", ret); goto read_frame_bad;}
 
 init_resync:
-
-	fr->header_change = 2; /* output format change is possible... */
-	if(fr->oldhead)        /* check a following header for change */
-	{
-		if(fr->oldhead == newhead) fr->header_change = 0;
-		else
-		/* If they have the same sample rate. Note that only is _not_ the case for the first header, as we enforce sample rate match for following frames.
-			 So, during one stream, only change of stereoness is possible and indicated by header_change == 2. */
-		if((fr->oldhead & HDR_SAMPMASK) == (newhead & HDR_SAMPMASK))
-		{
-			/* Now if both channel modes are mono or both stereo, it's no big deal. */
-			if( header_mono(fr->oldhead) == header_mono(newhead))
-			fr->header_change = 1;
-		}
-	}
 
 #ifdef SKIP_JUNK
 	if(!fr->firsthead && !head_check(newhead))
@@ -600,6 +592,41 @@ init_resync:
 	fr->to_decode = fr->to_ignore = TRUE;
 	if(fr->error_protection) fr->crc = getbits(fr, 16); /* skip crc */
 
+	/*
+		Let's check for header change after deciding that the new one is good
+		and actually having read a frame.
+
+		header_change > 1: decoder structure has to be updated
+		Preserve header_change value from previous runs if it is serious.
+		If we still have a big change pending, it should be dealt with outside,
+		fr->header_change set to zero afterwards.
+	*/
+	if(fr->header_change < 2)
+	{
+		fr->header_change = 2; /* output format change is possible... */
+		if(fr->oldhead)        /* check a following header for change */
+		{
+			if(fr->oldhead == newhead) fr->header_change = 0;
+			else
+			/* Headers that match in this test behave the same for the outside world.
+			   namely: same decoding routines, same amount of decoded data. */
+			if(head_compatible(fr->oldhead, newhead))
+			fr->header_change = 1;
+			else
+			{
+				fr->state_flags |= FRAME_FRANKENSTEIN;
+				if(NOQUIET)
+				fprintf(stderr, "\nWarning: Big change (MPEG version, layer, rate). Frankenstein stream?\n");
+			}
+		}
+		else if(fr->firsthead && !head_compatible(fr->firsthead, newhead))
+		{
+			fr->state_flags |= FRAME_FRANKENSTEIN;
+			if(NOQUIET)
+			fprintf(stderr, "\nWarning: Big change from first (MPEG version, layer, rate). Frankenstein stream?\n");
+		}
+	}
+
 	fr->oldhead = newhead;
 
 	return 1;
@@ -673,29 +700,22 @@ static int decode_header(mpg123_handle *fr,unsigned long newhead, int *freeforma
 		error1("trying to decode obviously invalid header 0x%08lx", newhead);
 	}
 #endif
+	/* For some reason, the layer and sampling freq settings used to be wrapped
+	   in a weird conditional including MPG123_NO_RESYNC. What was I thinking?
+	   This information has to be consistent. */
+	fr->lay = 4 - HDR_LAYER_VAL(newhead);
+
 	if(HDR_VERSION_VAL(newhead) & 0x2)
 	{
 		fr->lsf = (HDR_VERSION_VAL(newhead) & 0x1) ? 0 : 1;
 		fr->mpeg25 = 0;
+		fr->sampling_frequency = HDR_SAMPLERATE_VAL(newhead) + (fr->lsf*3);
 	}
 	else
 	{
 		fr->lsf = 1;
 		fr->mpeg25 = 1;
-	}
-
-	if(   (fr->p.flags & MPG123_NO_RESYNC) || !fr->oldhead
-	   || (HDR_VERSION_VAL(fr->oldhead) != HDR_VERSION_VAL(newhead)) )
-	{
-		/* If "tryresync" is false, assume that certain
-		parameters do not change within the stream!
-		Force an update if lsf or mpeg25 settings
-		have changed. */
-		fr->lay = 4 - HDR_LAYER_VAL(newhead);
-		if(fr->mpeg25)
 		fr->sampling_frequency = 6 + HDR_SAMPLERATE_VAL(newhead);
-		else
-		fr->sampling_frequency = HDR_SAMPLERATE_VAL(newhead) + (fr->lsf*3);
 	}
 
 	#ifdef DEBUG
@@ -756,6 +776,7 @@ static int decode_header(mpg123_handle *fr,unsigned long newhead, int *freeforma
 	{
 #ifndef NO_LAYER1
 		case 1:
+			fr->spf = 384;
 			fr->do_layer = do_layer1;
 			if(!fr->freeformat)
 			{
@@ -767,6 +788,7 @@ static int decode_header(mpg123_handle *fr,unsigned long newhead, int *freeforma
 #endif
 #ifndef NO_LAYER2
 		case 2:
+			fr->spf = 1152;
 			fr->do_layer = do_layer2;
 			if(!fr->freeformat)
 			{
@@ -779,6 +801,7 @@ static int decode_header(mpg123_handle *fr,unsigned long newhead, int *freeforma
 #endif
 #ifndef NO_LAYER3
 		case 3:
+			fr->spf = fr->lsf ? 576 : 1152; /* MPEG 2.5 implies LSF.*/
 			fr->do_layer = do_layer3;
 			if(fr->lsf)
 			fr->ssize = (fr->stereo == 1) ? 9 : 17;
@@ -849,14 +872,14 @@ int attribute_align_arg mpg123_spf(mpg123_handle *mh)
 {
 	if(mh == NULL) return MPG123_ERR;
 
-	return spf(mh);
+	return mh->firsthead ? mh->spf : MPG123_ERR;
 }
 
 double attribute_align_arg mpg123_tpf(mpg123_handle *fr)
 {
 	static int bs[4] = { 0,384,1152,1152 };
 	double tpf;
-	if(fr == NULL) return -1;
+	if(fr == NULL || !fr->firsthead) return -1;
 
 	tpf = (double) bs[fr->lay];
 	tpf /= freqs[fr->sampling_frequency] << (fr->lsf);
@@ -986,7 +1009,7 @@ static int do_readahead(mpg123_handle *fr, unsigned long newhead)
 	}
 
 	debug2("does next header 0x%08lx match first 0x%08lx?", nexthead, newhead);
-	if(!head_check(nexthead) || (nexthead & HDR_CMPMASK) != (newhead & HDR_CMPMASK))
+	if(!head_check(nexthead) || !head_compatible(newhead, nexthead))
 	{
 		debug("No, the header was not valid, start from beginning...");
 		fr->oldhead = 0; /* start over */
@@ -1163,8 +1186,8 @@ static int wetwork(mpg123_handle *fr, unsigned long *newheadp)
 		}
 		else
 		{
-			debug1("Found possibly valid header 0x%lx... unsetting firsthead to reinit stream.", newhead);
-			fr->firsthead = 0;
+			debug1("Found possibly valid header 0x%lx... unsetting oldhead to reinit stream.", newhead);
+			fr->oldhead = 0;
 			return PARSE_RESYNC;
 		}
 	}

@@ -8,7 +8,7 @@
 
 #include "mangle.h"
 
-#ifdef _WIN64
+#ifdef IS_MSABI
 /* short *window; */
 #define WINDOW %rsi
 /* short *b0l; */
@@ -63,7 +63,7 @@ ASM_NAME(maxmin_s32):
 	ALIGN16
 .globl ASM_NAME(synth_1to1_s32_s_x86_64_asm)
 ASM_NAME(synth_1to1_s32_s_x86_64_asm):
-#ifdef _WIN64 /* should save xmm6-15 */
+#ifdef IS_MSABI /* should save xmm6-15 */
 	movl		40(%rsp), %eax /* 5th argument; placed after 32-byte shadow space */
 	pushq		%rsi
 	pushq		%rdi
@@ -82,7 +82,7 @@ ASM_NAME(synth_1to1_s32_s_x86_64_asm):
 	subq		$24, %rsp  /* stack alignment + temp */
 #endif
 	
-#ifdef _WIN64
+#ifdef IS_MSABI
 	shlq		$32, %rax
 	shrq		$30, %rax
 	movq		%rcx, %rsi
@@ -105,7 +105,7 @@ ASM_NAME(synth_1to1_s32_s_x86_64_asm):
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_1:
+1:
 	movups		(WINDOW), %xmm8
 	movups		16(WINDOW), %xmm1
 	movups		32(WINDOW), %xmm2
@@ -268,12 +268,12 @@ Loop_start_1:
 	
 	leaq		32(SAMPLES), SAMPLES
 	decl		%ecx
-	jnz			Loop_start_1
+	jnz			1b
 	
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_2:
+1:
 	movups		(WINDOW), %xmm8
 	movups		16(WINDOW), %xmm1
 	movups		32(WINDOW), %xmm2
@@ -436,7 +436,7 @@ Loop_start_2:
 	
 	leaq		32(SAMPLES), SAMPLES
 	decl		%ecx
-	jnz			Loop_start_2
+	jnz			1b
 	
 	movaps		TEMP_CLIP, %xmm4
 	movhlps		%xmm4, %xmm0
@@ -451,7 +451,7 @@ Loop_start_2:
 	movd		%xmm0, %eax
 	andl		$0xffff, %eax
 	
-#ifdef _WIN64
+#ifdef IS_MSABI
 	movaps		(%rsp), %xmm6
 	movaps		16(%rsp), %xmm7
 	movaps		32(%rsp), %xmm8

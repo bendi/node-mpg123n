@@ -16,29 +16,7 @@
 #include "config.h" /* Load this before _anything_ */
 #include "intsym.h" /* Prefixing of internal symbols that still are public in a static lib. */
 
-/* ABI conformance for other compilers.
-   mpg123 needs 16byte-aligned stack for SSE and friends.
-   gcc provides that, but others don't necessarily. */
-#ifdef ABI_ALIGN_FUN
-#ifndef attribute_align_arg
-#if defined(__GNUC__) && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__>1)
-#    define attribute_align_arg __attribute__((force_align_arg_pointer))
-/* The gcc that can align the stack does not need the check... nor does it work with gcc 4.3+, anyway. */
-#else
-
-#    define attribute_align_arg
-/* Other compilers get code to catch misaligned stack.
-   Well, except Sun Studio, which accepts the aligned attribute but does not honor it. */
-#if !defined(__SUNPRO_C)
-#    define NEED_ALIGNCHECK
-#endif
-
-#endif
-#endif
-#else
-#define attribute_align_arg
-/* We won't try the align check... */
-#endif
+#include "abi_align.h"
 
 /* export DLL symbols */
 #if defined(WIN32) && defined(DYNAMIC_BUILD)
@@ -60,19 +38,15 @@
 #define memmove(dst,src,size) bcopy(src,dst,size)
 #endif
 
-/* some stuff has to go back to mpg123.h */
+/* We don't really do long double... there are 3 options for REAL:
+   float, long and double. */
+
 #ifdef REAL_IS_FLOAT
 #  define real float
-#  define REAL_SCANF "%f"
-#  define REAL_PRINTF "%f"
-#elif defined(REAL_IS_LONG_DOUBLE)
-#  define real long double
-#  define REAL_SCANF "%Lf"
-#  define REAL_PRINTF "%Lf"
 #elif defined(REAL_IS_FIXED)
-/* Disable some output formats for fixed point decoder... */
 
-# define real long
+# define real  int32_t
+# define dreal int64_t
 
 /*
   for fixed-point decoders, use pre-calculated tables to avoid expensive floating-point maths
@@ -83,14 +57,14 @@
 # define REAL_RADIX				24
 # define REAL_FACTOR			16777216.0
 
-static inline long double_to_long_rounded(double x, double scalefac)
+static inline int32_t double_to_long_rounded(double x, double scalefac)
 {
 	x *= scalefac;
 	x += (x > 0) ? 0.5 : -0.5;
-	return (long)x;
+	return (int32_t)x;
 }
 
-static inline long scale_rounded(long x, int shift)
+static inline int32_t scale_rounded(int32_t x, int shift)
 {
 	x += (x >> 31);
 	x >>= (shift - 1);
@@ -190,7 +164,7 @@ static inline long scale_rounded(long x, int shift)
 #  endif
 # endif
 
-/* I just changed the (int) to (long) there... seemed right. */
+/* I just changed the (int) to (real) there... seemed right. */
 # define DOUBLE_TO_REAL(x)					(double_to_long_rounded(x, REAL_FACTOR))
 # define DOUBLE_TO_REAL_15(x)				(double_to_long_rounded(x, 32768.0))
 # define DOUBLE_TO_REAL_POW43(x)			(double_to_long_rounded(x, 8192.0))
@@ -202,17 +176,17 @@ static inline long scale_rounded(long x, int shift)
 #  define REAL_MUL_15(x, y)					REAL_MUL_ASM(x, y, 15)
 #  define REAL_MUL_SCALE_LAYER12(x, y)		REAL_MUL_ASM(x, y, 15 + 30 - REAL_RADIX)
 # else
-#  define REAL_MUL(x, y)					(((long long)(x) * (long long)(y)) >> REAL_RADIX)
-#  define REAL_MUL_15(x, y)					(((long long)(x) * (long long)(y)) >> 15)
-#  define REAL_MUL_SCALE_LAYER12(x, y)		(((long long)(x) * (long long)(y)) >> (15 + 30 - REAL_RADIX))
+#  define REAL_MUL(x, y)					(((dreal)(x) * (dreal)(y)) >> REAL_RADIX)
+#  define REAL_MUL_15(x, y)					(((dreal)(x) * (dreal)(y)) >> 15)
+#  define REAL_MUL_SCALE_LAYER12(x, y)		(((dreal)(x) * (dreal)(y)) >> (15 + 30 - REAL_RADIX))
 # endif
 # ifdef REAL_MUL_SCALE_LAYER3_ASM
 #  define REAL_MUL_SCALE_LAYER3(x, y, z)	REAL_MUL_SCALE_LAYER3_ASM(x, y, 13 + gainpow2_scale[z] - REAL_RADIX)
 # else
-#  define REAL_MUL_SCALE_LAYER3(x, y, z)	(((long long)(x) * (long long)(y)) >> (13 + gainpow2_scale[z] - REAL_RADIX))
+#  define REAL_MUL_SCALE_LAYER3(x, y, z)	(((dreal)(x) * (dreal)(y)) >> (13 + gainpow2_scale[z] - REAL_RADIX))
 # endif
-# define REAL_SCALE_LAYER12(x)				((long)((x) >> (30 - REAL_RADIX)))
-# define REAL_SCALE_LAYER3(x, y)			((long)((x) >> (gainpow2_scale[y] - REAL_RADIX)))
+# define REAL_SCALE_LAYER12(x)				((real)((x) >> (30 - REAL_RADIX)))
+# define REAL_SCALE_LAYER3(x, y)			((real)((x) >> (gainpow2_scale[y] - REAL_RADIX)))
 # ifdef ACCURATE_ROUNDING
 #  define REAL_MUL_SYNTH(x, y)				REAL_MUL(x, y)
 #  define REAL_SCALE_DCT64(x)				(x)
@@ -222,13 +196,12 @@ static inline long scale_rounded(long x, int shift)
 #  define REAL_SCALE_DCT64(x)				((x) >> 8)
 #  define REAL_SCALE_WINDOW(x)				scale_rounded(x, 16)
 # endif
-#  define REAL_SCANF "%ld"
-#  define REAL_PRINTF "%ld"
 
 #else
+/* Just define a symbol to make things clear.
+   Existing code still uses (not (float or fixed)) for that. */
+#  define REAL_IS_DOUBLE
 #  define real double
-#  define REAL_SCANF "%lf"
-#  define REAL_PRINTF "%f"
 #endif
 
 #ifndef REAL_IS_FIXED
@@ -323,9 +296,10 @@ static inline long scale_rounded(long x, int shift)
 
 int decode_update(mpg123_handle *mh);
 /* residing in format.c  */
-off_t samples_to_storage(mpg123_handle *fr , off_t s);
+off_t decoder_synth_bytes(mpg123_handle *fr , off_t s);
 off_t samples_to_bytes(mpg123_handle *fr , off_t s);
 off_t bytes_to_samples(mpg123_handle *fr , off_t b);
+off_t outblock_bytes(mpg123_handle *fr, off_t s);
 /* Postprocessing format conversion of freshly decoded buffer. */
 void postprocess_buffer(mpg123_handle *fr);
 

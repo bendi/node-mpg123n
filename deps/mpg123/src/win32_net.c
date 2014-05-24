@@ -288,9 +288,9 @@ static int win32_net_open_connection(mpg123_string *host, mpg123_string *port)
 	return 1;
 }
 
-static size_t win32_net_readstring (mpg123_string *string, size_t maxlen, FILE *f)
+static size_t win32_net_readstring (mpg123_string *string, size_t maxlen, int fd)
 {
-	debug2("Attempting readstring on %d for %"SIZE_P" bytes", f ? fileno(f) : -1, (size_p)maxlen);
+	debug2("Attempting readstring on %d for %"SIZE_P" bytes", fd, (size_p)maxlen);
 	int err;
 	string->fill = 0;
 	while(maxlen == 0 || string->fill < maxlen)
@@ -455,12 +455,11 @@ int win32_net_http_open(char* url, struct httpdata *hd)
 
 		mpg123_add_string(&request_url, purl.p);
 
+		if(!split_url(&purl, NULL, &host, &port, &path)){ oom=1; goto exit; }
 		if (hd->proxystate >= PROXY_HOST)
 		{
 			/* We will connect to proxy, full URL goes into the request. */
-			if(    !mpg123_copy_string(&hd->proxyhost, &host)
-			    || !mpg123_copy_string(&hd->proxyport, &port)
-			    || !mpg123_set_string(&request, "GET ")
+			if(    !mpg123_set_string(&request, "GET ")
 			    || !mpg123_add_string(&request, request_url.p) )
 			{
 				oom=1; goto exit;
@@ -469,7 +468,6 @@ int win32_net_http_open(char* url, struct httpdata *hd)
 		else
 		{
 			/* We will connect to the host from the URL and only the path goes into the request. */
-			if(!split_url(&purl, NULL, &host, &port, &path)){ oom=1; goto exit; }
 			if(    !mpg123_set_string(&request, "GET ")
 			    || !mpg123_add_string(&request, path.p) )
 			{
@@ -480,6 +478,14 @@ int win32_net_http_open(char* url, struct httpdata *hd)
 		if(!fill_request(&request, &host, &port, &httpauth1, &try_without_port)){ oom=1; goto exit; }
 
 		httpauth1.fill = 0; /* We use the auth data from the URL only once. */
+		if (hd->proxystate >= PROXY_HOST)
+		{
+			if(    !mpg123_copy_string(&hd->proxyhost, &host)
+			    || !mpg123_copy_string(&hd->proxyport, &port) )
+			{
+				oom=1; goto exit;
+			}
+		}
 		debug2("attempting to open_connection to %s:%s", host.p, port.p);
 		win32_net_open_connection(&host, &port);
 		if(ws.local_socket == SOCKET_ERROR)
@@ -496,7 +502,7 @@ int win32_net_http_open(char* url, struct httpdata *hd)
 		relocate = FALSE;
 		/* Arbitrary length limit here... */
 #define safe_readstring \
-		win32_net_readstring(&response, SIZE_MAX/16, NULL); \
+		win32_net_readstring(&response, SIZE_MAX/16, -1); \
 		if(response.fill > SIZE_MAX/16) /* > because of appended zero. */ \
 		{ \
 			error("HTTP response line exceeds max. length"); \
@@ -564,6 +570,7 @@ int win32_net_http_open(char* url, struct httpdata *hd)
 				}
 			}
 		} while(response.p[0] != '\r' && response.p[0] != '\n');
+		if (relocate) { win32_net_close(ws.local_socket); ws.local_socket=SOCKET_ERROR; }
 	} while(relocate && got_location && purl.fill && numrelocs++ < HTTP_MAX_RELOCATIONS);
 	if(relocate)
 	{

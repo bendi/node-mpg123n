@@ -76,6 +76,9 @@
 #include <sys/select.h>
 #endif
 
+/* compat_open makes little sense without */
+#include <fcntl.h>
+
 /* To parse big numbers... */
 #ifdef HAVE_ATOLL
 #define atobigint atoll
@@ -174,5 +177,7 @@ int win32_utf8_wide(const char *const mbptr, wchar_t **wptr, size_t *buflen);
 #ifdef __KLIBC__
 typedef int socklen_t;
 #endif
+
+#include "true.h"
 
 #endif

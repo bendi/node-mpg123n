@@ -5,10 +5,10 @@
 ## initially written by Nicholas J. Humfrey
 
 #AM_CPPFLAGS = -I$(top_srcdir)/src/libmpg123 -I$(top_srcdir)/src
-INCLUDES = $(LTDLINCL) -I$(top_builddir)/src -I$(top_builddir)/src/libmpg123 -I$(top_srcdir)/src -I$(top_srcdir)/src/libmpg123
+AM_CPPFLAGS = $(LTDLINCL) -I$(top_builddir)/src -I$(top_builddir)/src/libmpg123 -I$(top_srcdir)/src -I$(top_srcdir)/src/libmpg123
 
 #Do not include uneeded headers from mpg123app.h
-AM_CPPFLAGS = -DBUILDING_OUTPUT_MODULES=1
+AM_CPPFLAGS += -DBUILDING_OUTPUT_MODULES=1
 
 if HAVE_MODULES
 
@@ -17,7 +17,7 @@ pkglib_LTLIBRARIES =
 # These are not tested and _very_ likely need work: aix alib hp os2 sgi mint
 
 # Use that sh/perl script to generate the module entries:
-#for i in alsa coreaudio esd jack nas oss portaudio pulse sdl sndio sun win32 aix alib arts hp os2 sgi mint openal dummy; do echo $i; done |
+#for i in tinyalsa alsa coreaudio esd jack nas oss portaudio pulse qsa sdl sndio sun win32 win32_wasapi aix alib arts hp os2 sgi mint openal dummy; do echo $i; done |
 #perl -ne 'chomp; $big = uc($_); print <<EOT;
 #
 #if HAVE_$big
@@ -29,6 +29,14 @@ pkglib_LTLIBRARIES =
 #endif
 #EOT
 #'
+
+if HAVE_TINYALSA
+pkglib_LTLIBRARIES += output_tinyalsa.la
+output_tinyalsa_la_SOURCES = tinyalsa.c
+output_tinyalsa_la_LDFLAGS = -module -no-undefined -avoid-version -export-dynamic  -export-symbols-regex '^mpg123_' @TINYALSA_LDFLAGS@
+output_tinyalsa_la_CFLAGS  = @TINYALSA_CFLAGS@
+output_tinyalsa_la_LIBADD  = @TINYALSA_LIBS@ 
+endif
 
 if HAVE_ALSA
 pkglib_LTLIBRARIES += output_alsa.la
@@ -132,6 +140,14 @@ output_win32_la_SOURCES = win32.c
 output_win32_la_LDFLAGS = -module -no-undefined -avoid-version -export-dynamic  -export-symbols-regex '^mpg123_' @WIN32_LDFLAGS@
 output_win32_la_CFLAGS  = @WIN32_CFLAGS@
 output_win32_la_LIBADD  = @WIN32_LIBS@ 
+endif
+
+if HAVE_WIN32_WASAPI
+pkglib_LTLIBRARIES += output_win32_wasapi.la
+output_win32_wasapi_la_SOURCES = win32_wasapi.c
+output_win32_wasapi_la_LDFLAGS = -module -no-undefined -avoid-version -export-dynamic  -export-symbols-regex '^mpg123_' @WIN32_WASAPI_LDFLAGS@
+output_win32_wasapi_la_CFLAGS  = @WIN32_WASAPI_CFLAGS@
+output_win32_wasapi_la_LIBADD  = @WIN32_WASAPI_LIBS@ 
 endif
 
 if HAVE_AIX

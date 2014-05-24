@@ -71,7 +71,9 @@
 /*
 	A generic mask for telling if a header is somewhat valid for the current stream.
 	Meaning: Most basic info is not allowed to change.
-	Think: Why do we allow changing channel setup? A change in that means another stream (segment).
+	Checking of channel count needs to be done, too, though. So,
+	if channel count matches, frames are decoded the same way: frame buffers and decoding
+	routines can stay the same, especially frame buffers (think spf * channels!).
 */
 #define HDR_CMPMASK (HDR_SYNC|HDR_VERSION|HDR_LAYER|HDR_SAMPLERATE)
 

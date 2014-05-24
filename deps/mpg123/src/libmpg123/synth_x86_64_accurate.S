@@ -8,7 +8,7 @@
 
 #include "mangle.h"
 
-#ifdef _WIN64
+#ifdef IS_MSABI
 /* short *window; */
 #define ARG0 %r10
 /* short *b0; */
@@ -56,7 +56,7 @@ ASM_NAME(maxmin_s16):
 	ALIGN16
 .globl ASM_NAME(synth_1to1_x86_64_accurate_asm)
 ASM_NAME(synth_1to1_x86_64_accurate_asm):
-#ifdef _WIN64 /* should save xmm6-15 */
+#ifdef IS_MSABI /* should save xmm6-15 */
 	movq		%rcx, ARG0
 	subq		$152, %rsp /* stack alignment + 9 xmm registers */
 	movaps		%xmm6, (%rsp)
@@ -84,7 +84,7 @@ ASM_NAME(synth_1to1_x86_64_accurate_asm):
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_1:
+1:
 	movups		(ARG0), %xmm8
 	movups		16(ARG0), %xmm1
 	movups		32(ARG0), %xmm2
@@ -176,12 +176,12 @@ Loop_start_1:
 	
 	leaq		16(ARG2), ARG2
 	decl		%ecx
-	jnz			Loop_start_1
+	jnz			1b
 	
 	movl		$4, %ecx
 	
 	ALIGN16
-Loop_start_2:
+1:
 	movups		(ARG0), %xmm8
 	movups		16(ARG0), %xmm1
 	movups		32(ARG0), %xmm2
@@ -273,7 +273,7 @@ Loop_start_2:
 	
 	leaq		16(ARG2), ARG2
 	decl		%ecx
-	jnz			Loop_start_2
+	jnz			1b
 	
 	pshuflw		$0xee, XMMREG_CLIP, %xmm0
 	movhlps		XMMREG_CLIP, %xmm1
@@ -284,7 +284,7 @@ Loop_start_2:
 	
 	movd		XMMREG_CLIP, %eax
 	
-#ifdef _WIN64
+#ifdef IS_MSABI
 	movaps		(%rsp), %xmm6
 	movaps		16(%rsp), %xmm7
 	movaps		32(%rsp), %xmm8

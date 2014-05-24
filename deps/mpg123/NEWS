@@ -1,3 +1,89 @@
+1.19.0
+---
+- Support float and 32/24 bit integer output also with fixed-point decoders (conversion from 16 bit precision).
+- A-Law output encoding is actually implemented now (Michael introduced the encoding back in the old days without ever implementing theconversion table, apparently).
+- Added --with-cpu=arm_fpu as decoder choice for runtime switch between plain fpu code and NEON.
+- Fix ARM builds to work properly on debian systems without special CFLAGS (NEON decoder, specifically).
+- Make scripts/benchmark-cpu.pl check the return value instead of delivering crazy timings for crashed mpg123.
+- Trigger track initialization in mpg123_info() to avoid use of uninitialized variables (watch out for MPG123_NEED_MORE return value!).
+- Fix integer code to 32 bit numbers where it would waste 64 bit on modern systems.
+- Add non-executable stack marking also to ARM assembly.
+
+1.18.1
+---
+- Do not close buffer twice with mpg123 -R (delete outdated code in control_generic(), fixing bug 207.
+- Do not mess around with first command line argument to extract program name, use a copy instead, fixing bug 205.
+- Prevent premature exit on timing of failure to open a track in the playlist and the user wanting to skip over it (bug 206).
+- Fixup of HTTP socket mess, also avoiding unnecessary FILE objects (bug 204, patch by Rajeev V. Pillai).
+- Fix playlist behaviour on slow HTTP streams, jumping back ('d' key) from first track stays at first track (thanks to Rajeev again, sub-bug of bug 206).
+- Fix Frankenstein check not to stumble over ID3v1 tags. My apologies. As a bonus, the position of the concerned code in the parser is now far more logical.
+
+1.18.0
+---
+
+- libmpg123 version 39
+- Big version increase for clear distinction regarding the 1.14.x regression fixes in libmpg123.
+- Regression fix: Ensure decoder reinitialization on combination of seek and resync (buffer overflow bug 201, introduced in 1.14.1).
+- Regression fix: Make parsing really end on reaching of junk limit (introduced in 1.14.4).
+- Add check for bad bit allocation value in layer I decoder (removes audible glitch in bug 201 test file).
+- Avoid wrong error message about Frankenstein streams when gapless decoding disabled.
+- Be verbose about big header changes (Frankenstein streams). Note that changes in samples per frame will confuse the seeking code, but decoding can get through.
+- Actually use the full routine to close tracks. Avoids socket leak when playing multiple HTTP streams from a playlist (bug 203).
+- Send correct host header when connecting through HTTP proxy (bug 202, figured out by Rajeev V. Pillai).
+- The console application now informs about changed major stream properties (prints out another header line).
+
+1.17.0
+---
+- mpg123-id3dump --no-scan; for speedup
+- hide -C parameter from mpg123 --help when it is not supported
+- added tinyalsa Output (by Jarno Lehtinen)
+- build system tweaking
+- some care for fixing Cygwin builds
+
+1.16.0
+---
+- Taihei strikes again:
+  - New Huffman decoding scheme (configurable, on by default) brings nice boost to mpg123 to make it the fastest decoder on modern CPUs again.
+  - new AVX decoder
+  - assembly-optimized DCT36 for SSE and AVX
+- added configs for vintage 3DNow(ext) CPUs (AMD K6) utilizing assembly DCT36
+- added configs for vintage SSE CPUs (Pentium M), utilizing C DCT36
+- added FORMAT command to generic control
+- added support for ID3v2 APIC frames
+- added mpg123-id3dump as official companion to extract meta data
+  (including writing of album art from APIC to files)
+- added mpg123-strip as official companion to strip dirt out of MPEG streams
+  (including meta data)
+- not deleting ID3 data right after printing in generic control
+- module loader a bit more flexible with relative MPG123_MODDIR
+- Fix chopped-off playback with pulseaudio output: draining the output now on closing.
+- SDL output fixup, a) not chopping off end and b) non-fatal underrun
+- Fix obvious errors in win32 output ... does it now play the end of tracks? Need someone to test this.
+- added support for screen and iris-ansi terminals with --title (as prompted by patch from sf.net user canavan)
+- fixes/enhancements for sgi audio output
+- libmpg123: proper largefile aliases for proper systems (FreeBSD with one one-and-only off_t
+  This enables client software that insists on defining pointless _FILE_OFFSET_BITS.
+- wrapper script src/mpg123-with-modules to ease the pain of running mpg123 with modules without installation (setting MPG123_MODDIR)
+- removed ALSA 0.5 code (unused for longtime, last GPL-only bit)
+
+1.15.4
+---
+- Writing CDDA data via --cdr works again; had also been broken by attempts to catch failing writes because of full disk.
+- Also, the return values of WAV/CDR writing routines now properly indicate error to avoid stupid endless loop of "smart" audio writing code that wants to handle interruptions. Really, --cdr could just go and nobody would miss it ...
+- Fix stupid bug in mpg123_chomp_string() (introduced in 1.15.1), empty lines were badly treated. Only usage in mpg123 is for parsing HTTP redirect headers; malicious HTTP servers might exploit that (possibility to zero bytes in memory).
+- some cleanup for nagging mode
+- more resync strictness to really catch (all) cases with changing decoder structure; in practice badly needed when disabling seekbuffer (so it's your fault, somehow ...) for non-seekable streams, otherwise not really an issue because of readahead checking
+  I repeat: This fixes possibly fatal behaviour in the parser when readahead checking is explicitly disabled (p.ex. via mpg123 --no-seekbuffer on http streams). By default, readahead checking is _always_ active!
+- build system fixed for automake 1.13 (thanks to Nix)
+
+1.15.3
+---
+- Fix WAV writing. AGAIN. People love to decode WAV to stdout in various ways that started to get broken with me starting to care for people who like to write to full disks. I frikkin' HATE this rat race! I'm even starting to SHOUT. Now, the code prefers to write no header at all (when there is no actual output) instead of possibly writing too many misleading ones. Getting the blame for breaking dir2ogg repeatedly while trying to cope with one fatal situation that you cannot really cope with sucks. Big time. I hope that's it now!
+
+1.15.2
+---
+- build fix with older shells (== in configure)
+
 1.15.1
 ---
 - libmpg123 API version 37
@@ -58,6 +144,7 @@ Who reworks a parsing and data mangling without really making sure that things s
 - ReplayGain: Try to detect LAME below 3.95 for the different reference level of 83 dB (adding preamp of 6 dB). Version 3.95 itself (not 3.95.1) I cannot detect. User-set gain values are not touched.
 - Keep silent about missing bit reservoir when ignoring frames. That is the whole point (mostly;-).
 - Add the new/old WRITE_SAMPLE variant from MPlayer that makes the generic decoder faster on older CPUs (x86 at least). Not on x86-64, though (it's not enabled per default there).
+- disable 3DNow and 3DNowExt DCT36, which is slow on modern CPUs
 - Handle out-of-disk in the file writers (a bit, see http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=67259)
 - Added Xcode project files to build libmpg123 on Mac OS and iOS
 - 32 bit output for sndio output (patch by Brad Smith).

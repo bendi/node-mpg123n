@@ -1,7 +1,7 @@
 /*
 	frame: Heap of routines dealing with the core mpg123 data structure.
 
-	copyright 2008-2010 by the mpg123 project - free software under the terms of the LGPL 2.1
+	copyright 2008-2014 by the mpg123 project - free software under the terms of the LGPL 2.1
 	see COPYING and AUTHORS files in distribution or http://mpg123.org
 	initially written by Thomas Orgis
 */
@@ -181,7 +181,7 @@ int frame_outbuffer(mpg123_handle *fr)
 		if(fr->buffer.size < size)
 		{
 			fr->err = MPG123_BAD_BUFFER;
-			if(NOQUIET) error2("have external buffer of size %"SIZE_P", need %"SIZE_P, (size_p)fr->buffer.size, size);
+			if(NOQUIET) error2("have external buffer of size %"SIZE_P", need %"SIZE_P, (size_p)fr->buffer.size, (size_p)size);
 
 			return MPG123_ERR;
 		}
@@ -530,6 +530,7 @@ static void frame_fixed_reset(mpg123_handle *fr)
 	fr->fsizeold = 0;
 	fr->firstframe = 0;
 	fr->ignoreframe = fr->firstframe-fr->p.preframes;
+	fr->header_change = 0;
 	fr->lastframe = -1;
 	fr->fresh = 1;
 	fr->new_format = 0;
@@ -603,39 +604,6 @@ void frame_exit(mpg123_handle *fr)
 #ifndef NO_FEEDER
 	bc_cleanup(&fr->rdat.buffer);
 #endif
-}
-
-int attribute_align_arg mpg123_info(mpg123_handle *mh, struct mpg123_frameinfo *mi)
-{
-	if(mh == NULL) return MPG123_ERR;
-	if(mi == NULL)
-	{
-		mh->err = MPG123_ERR_NULL;
-		return MPG123_ERR;
-	}
-	mi->version = mh->mpeg25 ? MPG123_2_5 : (mh->lsf ? MPG123_2_0 : MPG123_1_0);
-	mi->layer = mh->lay;
-	mi->rate = frame_freq(mh);
-	switch(mh->mode)
-	{
-		case 0: mi->mode = MPG123_M_STEREO; break;
-		case 1: mi->mode = MPG123_M_JOINT;  break;
-		case 2: mi->mode = MPG123_M_DUAL;   break;
-		case 3: mi->mode = MPG123_M_MONO;   break;
-		default: error("That mode cannot be!");
-	}
-	mi->mode_ext = mh->mode_ext;
-	mi->framesize = mh->framesize+4; /* Include header. */
-	mi->flags = 0;
-	if(mh->error_protection) mi->flags |= MPG123_CRC;
-	if(mh->copyright)        mi->flags |= MPG123_COPYRIGHT;
-	if(mh->extension)        mi->flags |= MPG123_PRIVATE;
-	if(mh->original)         mi->flags |= MPG123_ORIGINAL;
-	mi->emphasis = mh->emphasis;
-	mi->bitrate  = frame_bitrate(mh);
-	mi->abr_rate = mh->abr_rate;
-	mi->vbr = mh->vbr;
-	return MPG123_OK;
 }
 
 int attribute_align_arg mpg123_framedata(mpg123_handle *mh, unsigned long *header, unsigned char **bodydata, size_t *bodybytes)
@@ -781,7 +749,7 @@ off_t frame_outs(mpg123_handle *fr, off_t num)
 		case 1:
 		case 2:
 #		endif
-			outs = (spf(fr)>>fr->down_sample)*num;
+			outs = (fr->spf>>fr->down_sample)*num;
 		break;
 #ifndef NO_NTOM
 		case 3: outs = ntom_frmouts(fr, num); break;
@@ -803,7 +771,7 @@ off_t frame_expect_outsamples(mpg123_handle *fr)
 		case 1:
 		case 2:
 #		endif
-			outs = spf(fr)>>fr->down_sample;
+			outs = fr->spf>>fr->down_sample;
 		break;
 #ifndef NO_NTOM
 		case 3: outs = ntom_frame_outsamples(fr); break;
@@ -823,7 +791,7 @@ off_t frame_offset(mpg123_handle *fr, off_t outs)
 		case 1:
 		case 2:
 #		endif
-			num = outs/(spf(fr)>>fr->down_sample);
+			num = outs/(fr->spf>>fr->down_sample);
 		break;
 #ifndef NO_NTOM
 		case 3: num = ntom_frameoff(fr, outs); break;
@@ -837,12 +805,12 @@ off_t frame_offset(mpg123_handle *fr, off_t outs)
 /* input in _input_ samples */
 void frame_gapless_init(mpg123_handle *fr, off_t framecount, off_t bskip, off_t eskip)
 {
-	debug3("frame_gaples_init: given %"OFF_P" frames, skip %"OFF_P" and %"OFF_P, (off_p)framecount, (off_p)bskip, (off_p)eskip);
+	debug3("frame_gapless_init: given %"OFF_P" frames, skip %"OFF_P" and %"OFF_P, (off_p)framecount, (off_p)bskip, (off_p)eskip);
 	fr->gapless_frames = framecount;
-	if(fr->gapless_frames > 0)
+	if(fr->gapless_frames > 0 && bskip >=0 && eskip >= 0)
 	{
 		fr->begin_s = bskip+GAPLESS_DELAY;
-		fr->end_s = framecount*spf(fr)-eskip+GAPLESS_DELAY;
+		fr->end_s = framecount*fr->spf-eskip+GAPLESS_DELAY;
 	}
 	else fr->begin_s = fr->end_s = 0;
 	/* These will get proper values later, from above plus resampling info. */
@@ -856,17 +824,21 @@ void frame_gapless_realinit(mpg123_handle *fr)
 {
 	fr->begin_os = frame_ins2outs(fr, fr->begin_s);
 	fr->end_os   = frame_ins2outs(fr, fr->end_s);
-	fr->fullend_os = frame_ins2outs(fr, fr->gapless_frames*spf(fr));
-	debug2("frame_gapless_realinit: from %"OFF_P" to %"OFF_P" samples", (off_p)fr->begin_os, (off_p)fr->end_os);
+	if(fr->gapless_frames > 0)
+	fr->fullend_os = frame_ins2outs(fr, fr->gapless_frames*fr->spf);
+	else fr->fullend_os = 0;
+
+	debug4("frame_gapless_realinit: from %"OFF_P" to %"OFF_P" samples (%"OFF_P", %"OFF_P")", (off_p)fr->begin_os, (off_p)fr->end_os, (off_p)fr->fullend_os, (off_p)fr->gapless_frames);
 }
 
 /* At least note when there is trouble... */
 void frame_gapless_update(mpg123_handle *fr, off_t total_samples)
 {
-	off_t gapless_samples = fr->gapless_frames*spf(fr);
+	off_t gapless_samples = fr->gapless_frames*fr->spf;
 	debug2("gapless update with new sample count %"OFF_P" as opposed to known %"OFF_P, total_samples, gapless_samples);
 	if(NOQUIET && total_samples != gapless_samples)
-	fprintf(stderr, "\nWarning: Real sample count differs from given gapless sample count. Frankenstein stream?\n");
+	fprintf(stderr, "\nWarning: Real sample count %"OFF_P" differs from given gapless sample count %"OFF_P". Frankenstein stream?\n"
+	, total_samples, gapless_samples);
 
 	if(gapless_samples > total_samples)
 	{
@@ -893,7 +865,7 @@ static off_t ignoreframe(mpg123_handle *fr)
 	return fr->firstframe - preshift;
 }
 
-/* The frame seek... This is not simply the seek to fe*spf(fr) samples in output because we think of _input_ frames here.
+/* The frame seek... This is not simply the seek to fe*fr->spf samples in output because we think of _input_ frames here.
    Seek to frame offset 1 may be just seek to 200 samples offset in output since the beginning of first frame is delay/padding.
    Hm, is that right? OK for the padding stuff, but actually, should the decoder delay be better totally hidden or not?
    With gapless, even the whole frame position could be advanced further than requested (since Homey don't play dat). */

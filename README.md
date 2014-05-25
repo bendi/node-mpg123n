@@ -5,7 +5,7 @@ nodejs native bindings to [mpg123](http://mpg123.de) interactive mode (-R option
 
 Installation
 ------------
-`node-mpg123n` comes bundled with its own copy of `libmpg123` and `mpg123` application (v. 1.15.3), so 
+`node-mpg123n` comes bundled with its own copy of `libmpg123` and `mpg123` application (v. 1.19.0), so 
 there's no need to have `mpg123` installed on your system.
 
 Interactive mode has been rewritten (control_generic.c) so it's possible to interact with nodejs. Some additional

@@ -708,7 +708,7 @@ int play_frame(mpg123_handle *mh, audio_output_t *ao)
 			if(param.verbose > 2) fprintf(stderr, "\nNote: New output format %liHz %ich, format %i\n", rate, channels, format);
 
 			new_header = 1;
-			reset_audio(rate, channels, format);
+			reset_audio(ao, rate, channels, format);
 		}
 	}
 	if(new_header && !param.quiet)

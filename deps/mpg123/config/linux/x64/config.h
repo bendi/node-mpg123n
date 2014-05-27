@@ -27,7 +27,7 @@
 /* #undef DEBUG */
 
 /* The default audio output module(s) to use */
-#define DEFAULT_OUTPUT_MODULE "alsa"
+#define DEFAULT_OUTPUT_MODULE "oss"
 
 /* Define if building with dynamcally linked libmpg123 */
 #define DYNAMIC_BUILD 1
@@ -263,8 +263,8 @@
 /* Define if IPV6 support is enabled. */
 #define IPV6 1
 
-/* Define this to the size of long type in bits, used for LFS small/native
-   alias functions. */
+/* Define this to the size of native offset type in bits, used for LFS alias
+   functions. */
 #define LFS_ALIAS_BITS 64
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
@@ -323,6 +323,9 @@
 /* Define to disable string functions. */
 /* #undef NO_STRING */
 
+/* Define for post-processed 32 bit formats. */
+/* #undef NO_SYNTH32 */
+
 /* Define to disable warning messages. */
 /* #undef NO_WARNING */
 
@@ -336,7 +339,7 @@
 #define PACKAGE_NAME "mpg123"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "mpg123 1.15.1"
+#define PACKAGE_STRING "mpg123 1.19.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "mpg123"
@@ -345,7 +348,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.15.1"
+#define PACKAGE_VERSION "1.19.0"
 
 /* Define if portaudio v18 API is wanted. */
 /* #undef PORTAUDIO18 */
@@ -371,8 +374,14 @@
 /* Define if modules are enabled */
 #define USE_MODULES 1
 
+/* Define for new Huffman decoding scheme. */
+#define USE_NEW_HUFFTABLE 1
+
+/* Define to use yasm for assemble AVX sources. */
+/* #undef USE_YASM_FOR_AVX */
+
 /* Version number of package */
-#define VERSION "1.15.1"
+#define VERSION "1.19.0"
 
 /* Define to use Win32 named pipes */
 /* #undef WANT_WIN32_FIFO */
@@ -421,6 +430,12 @@
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef int32_t */
+
+/* Define to `long long' if <sys/types.h> does not define. */
+/* #undef int64_t */
+
+/* Define to the native offset type (long or actually off_t). */
+#define lfs_alias_t off_t
 
 /* Define to `long int' if <sys/types.h> does not define. */
 /* #undef off_t */

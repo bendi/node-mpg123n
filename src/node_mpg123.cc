@@ -15,11 +15,13 @@
  */
 
 #include <v8.h>
+#include <uv.h>
 #include <node.h>
 #include <node_buffer.h>
 #include "node_pointer.h"
 #include "node_mpg123.h"
 #include "debug.h"
+#include "nan.h"
 
 using namespace v8;
 using namespace node;
@@ -30,24 +32,28 @@ struct httpdata htd;
 audio_output_t *ao = NULL;
 
 #define UNWRAP_LOOP_DATA \
-  HandleScope scope; \
+  NanScope(); \
   control_generic_loop_data *loop_data = reinterpret_cast<control_generic_loop_data *>(UnwrapPointer(args[0]));
 
-Handle<Value> node_mpg123_init (const Arguments& args) {
-  HandleScope scope;
-  return scope.Close(Integer::New(mpg123_init()));
+#define SCOPE \
+  Isolate* isolate = Isolate::GetCurrent(); \
+  HandleScope scope(isolate);
+
+NAN_METHOD(node_mpg123_init) {
+  NanScope();
+  NanReturnValue(NanNew<Integer>(mpg123_init()));
 }
 
 
-Handle<Value> node_mpg123_exit (const Arguments& args) {
-  HandleScope scope;
+NAN_METHOD(node_mpg123_exit) {
+  NanScope();
   mpg123_exit();
-  return Undefined();
+  NanReturnUndefined();
 }
 
 
-Handle<Value> node_mpg123_new (const Arguments& args) {
-  HandleScope scope;
+NAN_METHOD(node_mpg123_new) {
+  NanScope();
 
   // TODO: Accept an input decoder String
   int error = MPG123_OK;
@@ -71,11 +77,11 @@ Handle<Value> node_mpg123_new (const Arguments& args) {
     data->mode = MODE_STOPPED;
     data->command = COMMAND_EMPTY;
     
-    rtn = Local<Value>::New(WrapPointer(data));
+    rtn = NanNew<Value>(WrapPointer(data));
   } else {
-    rtn = Local<Value>::New(Integer::New(error));
+    rtn = NanNew<Integer>(error);
   }
-  return scope.Close(rtn);
+  NanReturnValue(rtn);
 }
 
 void player_loop(control_generic_loop_data *data)
@@ -122,20 +128,23 @@ void node_mpg123_loop_async (uv_work_t *req) {
 }
 
 void node_mpg123_loop_after (uv_work_t *req) {
+        NanScope();
+
 	control_generic_loop_data *r = (control_generic_loop_data *)req->data;
 	
-	Handle<Value> argv[1] = { Integer::New(r->mode) };
+	Handle<Value> argv[1];
+        argv[0] = NanNew<Integer>(r->mode);
 	
 	TryCatch try_catch;
 	
 	if (r->command != COMMAND_PLAY) {
-		r->callback->Call(Context::GetCurrent()->Global(), 1, argv);
+                NanNew(r->callback)->Call(NanGetCurrentContext()->Global(), 1, argv);
 	}
 
 	if (r->command != COMMAND_EMPTY || r->mode == MODE_PLAYING) {
 		player_loop(r);
 	} else if (r->mode == MODE_STOPPED) {
-		r->callback.Dispose();
+		NanDisposePersistent(r->callback);
 	}
 	
 	if (try_catch.HasCaught()) {
@@ -150,38 +159,38 @@ char* stringArgToStr(const v8::Local<v8::Value> arg) {
   return cStr; 
 }
    
-Handle<Value> node_mpg123_play(const Arguments& args) {
+NAN_METHOD(node_mpg123_play) {
 	UNWRAP_LOOP_DATA;
 	
 	char *path = stringArgToStr(args[1]);
-	Local<Function> callback = Local<Function>::Cast(args[2]);
 	
 	if (!path) {
 		//debug("Path is %s - cannot open.", path);
-		return scope.Close(Number::New(0));
+		NanReturnValue(NanNew<Integer>(0));
+//		args.GetReturnValue().Set(Number::New(isolate, 0));
 	} else {
 		//debug("OK... going to finally open %s.", path);
 		loop_data->command = COMMAND_STOP_AND_PLAY;
 		loop_data->arg = path;
-		loop_data->callback = Persistent<Function>::New(callback);
+                NanAssignPersistent(loop_data->callback, args[2].As<Function>());
 		if (loop_data->mode != MODE_PLAYING) {
 			player_loop(loop_data);
 		}
-		return scope.Close(Number::New(1));
+		NanReturnValue(NanNew<Integer>(1));
 	}
 }
 
-Handle<Value> node_mpg123_stop(const Arguments& args) {
+NAN_METHOD(node_mpg123_stop) {
 	UNWRAP_LOOP_DATA;
 	
 	if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) { 
 		loop_data->command = COMMAND_STOP;
 	}	
 	
-	return Undefined();
+	NanReturnUndefined();
 }
 
-Handle<Value> node_mpg123_pause(const Arguments& args) {
+void node_mpg123_pause(const FunctionCallbackInfo<Value>& args) {
 	UNWRAP_LOOP_DATA;
 	
 	
@@ -194,10 +203,11 @@ Handle<Value> node_mpg123_pause(const Arguments& args) {
 		}
 	}	
 	
-	return Undefined();
+	NanReturnUndefined();
+	
 }
 
-Handle<Value> node_mpg123_volume(const Arguments& args) {
+NAN_METHOD(node_mpg123_volume) {
 	UNWRAP_LOOP_DATA;
 	
 	char *arg = stringArgToStr(args[1]);
@@ -207,11 +217,12 @@ Handle<Value> node_mpg123_volume(const Arguments& args) {
 	}
 	
 	delete arg;
+
+	NanReturnUndefined();	
 		
-	return Undefined();
 }
 
-Handle<Value> node_mpg123_jump(const Arguments& args) {
+NAN_METHOD(node_mpg123_jump) {
 	UNWRAP_LOOP_DATA;
 	
 	char *arg = stringArgToStr(args[1]);
@@ -221,21 +232,21 @@ Handle<Value> node_mpg123_jump(const Arguments& args) {
 		loop_data->arg = arg;
 	}
 
-	return Undefined();
+	NanReturnUndefined();	
 }
 
-Handle<Value> node_mpg123_safe_buffer (const Arguments& args) {
-  HandleScope scope;
+void node_mpg123_safe_buffer (const FunctionCallbackInfo<Value>& args) {
+  SCOPE;
   
   init_output(&ao);
-  return scope.Close(Number::New(mpg123_safe_buffer()));
+  NanReturnValue(NanNew<Number>(mpg123_safe_buffer()));
 }
 void InitMPG123(Handle<Object> target) {
-  HandleScope scope;
+  SCOPE;
 
 #define CONST_INT(value) \
-  target->Set(String::NewSymbol(#value), Integer::New(value), \
-      static_cast<PropertyAttribute>(ReadOnly|DontDelete));
+  target->ForceSet(NanNew<String>(#value), NanNew<Integer>(value), \
+  static_cast<PropertyAttribute>(ReadOnly|DontDelete));
 
   // mpg123_errors
   CONST_INT(MPG123_DONE);  /**< Message: Track ended. Stop decoding. */
@@ -334,7 +345,7 @@ void InitMPG123(Handle<Object> target) {
   NODE_SET_METHOD(target, "mpg123_pause", 		node_mpg123_pause);  
   NODE_SET_METHOD(target, "mpg123_jump", 		node_mpg123_jump);
   NODE_SET_METHOD(target, "mpg123_volume", 		node_mpg123_volume);  
-  NODE_SET_METHOD(target, "mpg123_safe_buffer", node_mpg123_safe_buffer);
+  NODE_SET_METHOD(target, "mpg123_safe_buffer",         node_mpg123_safe_buffer);
 }
 
 } // nodelame namespace

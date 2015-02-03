@@ -25,8 +25,6 @@ namespace mpg123n {
 void InitMPG123(Handle<Object>);
 
 void Initialize(Handle<Object> target) {
-  HandleScope scope;
-
   InitMPG123(target);
 }
 

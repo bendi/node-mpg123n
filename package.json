@@ -12,7 +12,7 @@
   ],
   "version": "0.0.21",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
-    "repository": {
+  "repository": {
     "type": "git",
     "url": "git://github.com/bendi/node-mpg123n.git"
   },
@@ -20,16 +20,19 @@
   "dependencies": {
     "bindings": "*",
     "debug": "*",
+    "nan": "^1.5.0",
     "node-pre-gyp": "0.5.5"
   },
   "scripts": {
     "install": "node-pre-gyp install --fallback-to-build"
   },
-  "bundledDependencies":["node-pre-gyp"],
+  "bundledDependencies": [
+    "node-pre-gyp"
+  ],
   "binary": {
     "module_name": "bindings",
     "module_path": "./build/Release",
     "host": "https://mpg123n.s3-us-west-2.amazonaws.com",
-    "remote_path" : "./{configuration}/"
+    "remote_path": "./{configuration}/"
   }
 }

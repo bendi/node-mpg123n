@@ -20,7 +20,7 @@
   "dependencies": {
     "bindings": "*",
     "debug": "*",
-    "nan": "^1.5.0",
+    "nan": "^1.6.2",
     "node-pre-gyp": "0.5.5"
   },
   "scripts": {

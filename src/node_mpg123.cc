@@ -132,8 +132,7 @@ void node_mpg123_loop_after (uv_work_t *req) {
 
 	control_generic_loop_data *r = (control_generic_loop_data *)req->data;
 	
-	Handle<Value> argv[1];
-        argv[0] = NanNew<Integer>(r->mode);
+	Handle<Value> argv[] = {NanNew<Integer>(r->mode)};
 	
 	TryCatch try_catch;
 	
@@ -167,7 +166,6 @@ NAN_METHOD(node_mpg123_play) {
 	if (!path) {
 		//debug("Path is %s - cannot open.", path);
 		NanReturnValue(NanNew<Integer>(0));
-//		args.GetReturnValue().Set(Number::New(isolate, 0));
 	} else {
 		//debug("OK... going to finally open %s.", path);
 		loop_data->command = COMMAND_STOP_AND_PLAY;

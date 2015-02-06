@@ -35,10 +35,6 @@ audio_output_t *ao = NULL;
   NanScope(); \
   control_generic_loop_data *loop_data = reinterpret_cast<control_generic_loop_data *>(UnwrapPointer(args[0]));
 
-#define SCOPE \
-  Isolate* isolate = Isolate::GetCurrent(); \
-  HandleScope scope(isolate);
-
 NAN_METHOD(node_mpg123_init) {
   NanScope();
   NanReturnValue(NanNew<Integer>(mpg123_init()));
@@ -188,7 +184,7 @@ NAN_METHOD(node_mpg123_stop) {
 	NanReturnUndefined();
 }
 
-void node_mpg123_pause(const FunctionCallbackInfo<Value>& args) {
+NAN_METHOD(node_mpg123_pause) {
 	UNWRAP_LOOP_DATA;
 	
 	
@@ -233,14 +229,14 @@ NAN_METHOD(node_mpg123_jump) {
 	NanReturnUndefined();	
 }
 
-void node_mpg123_safe_buffer (const FunctionCallbackInfo<Value>& args) {
-  SCOPE;
+NAN_METHOD(node_mpg123_safe_buffer) {
+  NanScope();
   
   init_output(&ao);
   NanReturnValue(NanNew<Number>(mpg123_safe_buffer()));
 }
 void InitMPG123(Handle<Object> target) {
-  SCOPE;
+  NanScope();
 
 #define CONST_INT(value) \
   target->ForceSet(NanNew<String>(#value), NanNew<Integer>(value), \

@@ -10,7 +10,7 @@
     "decode",
     "bindings"
   ],
-  "version": "0.0.21",
+  "version": "0.0.22",
   "author": "Marek Będkowski <marek@bedkowski.pl> (http://thejsteam.com)",
   "repository": {
     "type": "git",

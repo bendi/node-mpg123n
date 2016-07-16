@@ -18,13 +18,11 @@
 #include <uv.h>
 #include <node.h>
 #include <node_buffer.h>
-#include "node_pointer.h"
+#include <nan.h>
 #include "node_mpg123.h"
 #include "debug.h"
-#include "nan.h"
 
 using namespace v8;
-using namespace node;
 
 namespace mpg123n {
 
@@ -32,25 +30,22 @@ struct httpdata htd;
 audio_output_t *ao = NULL;
 
 #define UNWRAP_LOOP_DATA \
-  NanScope(); \
-  control_generic_loop_data *loop_data = reinterpret_cast<control_generic_loop_data *>(UnwrapPointer(args[0]));
+  Mpg123n* obj = Nan::ObjectWrap::Unwrap<Mpg123n>(info.This()); \
+  control_generic_loop_data *loop_data = obj->data;
 
-NAN_METHOD(node_mpg123_init) {
-  NanScope();
-  NanReturnValue(NanNew<Integer>(mpg123_init()));
+NAN_METHOD(Init) {
+  mpg123_init();
+  init_output(&ao);
+  mpg123_safe_buffer();
 }
 
-
-NAN_METHOD(node_mpg123_exit) {
-  NanScope();
+NAN_METHOD(Exit) {
   mpg123_exit();
-  NanReturnUndefined();
 }
 
+Nan::Persistent<v8::Function> Mpg123n::constructor;
 
-NAN_METHOD(node_mpg123_new) {
-  NanScope();
-
+Mpg123n::Mpg123n() {
   // TODO: Accept an input decoder String
   int error = MPG123_OK;
   mpg123_handle *mh = mpg123_new(NULL, &error);
@@ -58,26 +53,39 @@ NAN_METHOD(node_mpg123_new) {
   Local<Value> rtn;
   if (error == MPG123_OK) {
     httpdata_init(&htd);
-    
     audio_capabilities(ao, mh);
-  	
     load_equalizer(mh);
-    
     mpg123_control_init(mh);
-    
-    control_generic_loop_data *data = new control_generic_loop_data;
-    data->mh = mh;
-    data->ao = ao;
-    data->req.data = data;
-    data->silent = 0;
-    data->mode = MODE_STOPPED;
-    data->command = COMMAND_EMPTY;
-    
-    rtn = NanNew<Value>(WrapPointer(data));
+
+    control_generic_loop_data *loop_data = new control_generic_loop_data();
+    loop_data->mh = mh;
+    loop_data->ao = ao;
+    loop_data->req.data = loop_data;
+    loop_data->silent = 0;
+    loop_data->mode = MODE_STOPPED;
+    loop_data->command = COMMAND_EMPTY;
+    this->data = loop_data;
   } else {
-    rtn = NanNew<Integer>(error);
+    char message[256];
+    sprintf("Error occured while initializing mpg123: %d", message);
+    Nan::ThrowError(message);
   }
-  NanReturnValue(rtn);
+}
+
+Mpg123n::~Mpg123n() {
+}
+
+NAN_METHOD(Mpg123n::New) {
+  if (info.IsConstructCall()) {
+    Mpg123n *obj = new Mpg123n();
+    obj->Wrap(info.This());
+    info.GetReturnValue().Set(info.This());
+  } else {
+    const int argc = 1;
+    v8::Local<v8::Value> argv[argc] = {info[0]};
+    v8::Local<v8::Function> cons = Nan::New(constructor);
+    info.GetReturnValue().Set(cons->NewInstance(argc, argv));
+  }
 }
 
 void player_loop(control_generic_loop_data *data)
@@ -88,158 +96,135 @@ void player_loop(control_generic_loop_data *data)
 }
 
 void node_mpg123_loop_async (uv_work_t *req) {
-	control_generic_loop_data *r = (control_generic_loop_data *)req->data;
-
-	if (r->command != COMMAND_EMPTY) {
-		int clean = 1;
-		switch(r->command) {
-			case COMMAND_STOP_AND_PLAY:
-				clean = 0;
-				r->command = COMMAND_PLAY;
-			case COMMAND_STOP:
-				mpg123_control_stop(r->mh);
-				break;
-			case COMMAND_PAUSE:
-				mpg123_control_pause();
-				break;
-			case COMMAND_JUMP:
-				//debug("Jumping %s", r->arg);
-				mpg123_control_jump(r->mh, r->arg);
-				break;
-			case COMMAND_PLAY:
-				//debug("13: Do real play %s", r->arg);
-				mpg123_control_play(r->mh, r->arg);
-				break;
-		}
-		if (clean) {
-			if (r->arg != NULL) {
-				delete r->arg;
-				r->arg = NULL;
-			}
-			r->command = COMMAND_EMPTY;
-		}
-	}
-
-	r->mode = mpg123_control_loop(r->mh, r->ao, r->tv, r->fds, r->silent);
+  control_generic_loop_data *r = (control_generic_loop_data *)req->data;
+  if (r->command != COMMAND_EMPTY) {
+    int clean = 1;
+    switch(r->command) {
+      case COMMAND_STOP_AND_PLAY:
+        clean = 0;
+        r->command = COMMAND_PLAY;
+      case COMMAND_STOP:
+        mpg123_control_stop(r->mh);
+        break;
+      case COMMAND_PAUSE:
+        mpg123_control_pause();
+        break;
+      case COMMAND_JUMP:
+        //debug("Jumping %s", r->arg);
+        mpg123_control_jump(r->mh, r->arg);
+        break;
+      case COMMAND_PLAY:
+        //debug("13: Do real play %s", r->arg);
+        mpg123_control_play(r->mh, r->arg);
+        break;
+    }
+    if (clean) {
+      if (r->arg != NULL) {
+        delete r->arg;
+        r->arg = NULL;
+      }
+      r->command = COMMAND_EMPTY;
+    }
+  }
+  r->mode = mpg123_control_loop(r->mh, r->ao, r->tv, r->fds, r->silent);
 }
 
 void node_mpg123_loop_after (uv_work_t *req) {
-        NanScope();
+  Nan::HandleScope scope;
 
-	control_generic_loop_data *r = (control_generic_loop_data *)req->data;
-	
-	Handle<Value> argv[] = {NanNew<Integer>(r->mode)};
-	
-	TryCatch try_catch;
-	
-	if (r->command != COMMAND_PLAY) {
-                NanNew(r->callback)->Call(NanGetCurrentContext()->Global(), 1, argv);
-	}
+  control_generic_loop_data *r = (control_generic_loop_data *)req->data;
 
-	if (r->command != COMMAND_EMPTY || r->mode == MODE_PLAYING) {
-		player_loop(r);
-	} else if (r->mode == MODE_STOPPED) {
-		NanDisposePersistent(r->callback);
-	}
-	
-	if (try_catch.HasCaught()) {
-    	FatalException(try_catch);
-  	}
+  Local<Value> argv[] = {Nan::New<Integer>(r->mode)};
+
+  Nan::TryCatch try_catch;
+
+  if (r->command != COMMAND_PLAY) {
+    Nan::New(r->callback)->Call(Nan::GetCurrentContext()->Global(), 1, argv);
+  }
+
+  if (r->command != COMMAND_EMPTY || r->mode == MODE_PLAYING) {
+    player_loop(r);
+  } else if (r->mode == MODE_STOPPED) {
+    r->callback.Reset();
+  }
+
+  if (try_catch.HasCaught()) {
+    Nan::FatalException(try_catch);
+  }
 }
 
 char* stringArgToStr(const v8::Local<v8::Value> arg) { 
-  v8::String::Utf8Value v8Str(arg); 
+  Nan::Utf8String v8Str(arg);
   char *cStr = (char*) malloc(strlen(*v8Str) + 1); 
   strcpy(cStr, *v8Str); 
   return cStr; 
 }
    
-NAN_METHOD(node_mpg123_play) {
-	UNWRAP_LOOP_DATA;
-	
-	char *path = stringArgToStr(args[1]);
-	
-	if (!path) {
-		//debug("Path is %s - cannot open.", path);
-		NanReturnValue(NanNew<Integer>(0));
-	} else {
-		//debug("OK... going to finally open %s.", path);
-		loop_data->command = COMMAND_STOP_AND_PLAY;
-		loop_data->arg = path;
-                NanAssignPersistent(loop_data->callback, args[2].As<Function>());
-		if (loop_data->mode != MODE_PLAYING) {
-			player_loop(loop_data);
-		}
-		NanReturnValue(NanNew<Integer>(1));
-	}
+NAN_METHOD(Mpg123n::Play) {
+  UNWRAP_LOOP_DATA;
+
+  if (!info[0]->IsString()) {
+    //debug("Path is not String.");
+    info.GetReturnValue().Set(0);
+  } else {
+    char *path = stringArgToStr(info[0]);
+    //debug("OK... going to finally open %s.", path);
+    loop_data->command = COMMAND_STOP_AND_PLAY;
+    loop_data->arg = path;
+    loop_data->callback.Reset(info[1].As<Function>());
+    if (loop_data->mode != MODE_PLAYING) {
+      player_loop(loop_data);
+    }
+    info.GetReturnValue().Set(1);
+  }
 }
 
-NAN_METHOD(node_mpg123_stop) {
-	UNWRAP_LOOP_DATA;
-	
-	if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) { 
-		loop_data->command = COMMAND_STOP;
-	}	
-	
-	NanReturnUndefined();
+NAN_METHOD(Mpg123n::Stop) {
+  UNWRAP_LOOP_DATA;
+
+  if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) {
+    loop_data->command = COMMAND_STOP;
+  }
 }
 
-NAN_METHOD(node_mpg123_pause) {
-	UNWRAP_LOOP_DATA;
-	
-	
-	if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) { 
+NAN_METHOD(Mpg123n::Pause) {
+  UNWRAP_LOOP_DATA;
 
-		loop_data->command = COMMAND_PAUSE;
-		
-		if (loop_data->mode == MODE_PAUSED) {
-			player_loop(loop_data);
-		}
-	}	
-	
-	NanReturnUndefined();
-	
+  if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) {
+
+    loop_data->command = COMMAND_PAUSE;
+
+    if (loop_data->mode == MODE_PAUSED) {
+      player_loop(loop_data);
+    }
+  }
 }
 
-NAN_METHOD(node_mpg123_volume) {
-	UNWRAP_LOOP_DATA;
-	
-	char *arg = stringArgToStr(args[1]);
-	
-	if (loop_data->mh != NULL) {
-		mpg123_control_volume(loop_data->mh, arg);
-	}
-	
-	delete arg;
+NAN_METHOD(Mpg123n::Volume) {
+  UNWRAP_LOOP_DATA;
 
-	NanReturnUndefined();	
-		
+  char *arg = stringArgToStr(info[0]);
+
+  if (loop_data->mh != NULL) {
+    mpg123_control_volume(loop_data->mh, arg);
+  }
 }
 
-NAN_METHOD(node_mpg123_jump) {
-	UNWRAP_LOOP_DATA;
-	
-	char *arg = stringArgToStr(args[1]);
-	
-	if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) { 
-		loop_data->command = COMMAND_JUMP;
-		loop_data->arg = arg;
-	}
+NAN_METHOD(Mpg123n::Jump) {
+  UNWRAP_LOOP_DATA;
 
-	NanReturnUndefined();	
+  char *arg = stringArgToStr(info[0]);
+
+  if (loop_data->mh != NULL && loop_data->mode != MODE_STOPPED) {
+    loop_data->command = COMMAND_JUMP;
+    loop_data->arg = arg;
+  }
 }
 
-NAN_METHOD(node_mpg123_safe_buffer) {
-  NanScope();
-  
-  init_output(&ao);
-  NanReturnValue(NanNew<Number>(mpg123_safe_buffer()));
-}
-void InitMPG123(Handle<Object> target) {
-  NanScope();
+NAN_MODULE_INIT(Mpg123n::Init) {
 
 #define CONST_INT(value) \
-  target->ForceSet(NanNew<String>(#value), NanNew<Integer>(value), \
+  Nan::ForceSet(target, Nan::New<String>(#value).ToLocalChecked(), Nan::New<Integer>(value), \
   static_cast<PropertyAttribute>(ReadOnly|DontDelete));
 
   // mpg123_errors
@@ -331,15 +316,18 @@ void InitMPG123(Handle<Object> target) {
   CONST_INT(MODE_PLAYING);
   CONST_INT(MODE_PAUSED);
 
-  NODE_SET_METHOD(target, "mpg123_init", 		node_mpg123_init);
-  NODE_SET_METHOD(target, "mpg123_exit", 		node_mpg123_exit);
-  NODE_SET_METHOD(target, "mpg123_new", 		node_mpg123_new);  
-  NODE_SET_METHOD(target, "mpg123_play", 		node_mpg123_play);  
-  NODE_SET_METHOD(target, "mpg123_stop", 		node_mpg123_stop);  
-  NODE_SET_METHOD(target, "mpg123_pause", 		node_mpg123_pause);  
-  NODE_SET_METHOD(target, "mpg123_jump", 		node_mpg123_jump);
-  NODE_SET_METHOD(target, "mpg123_volume", 		node_mpg123_volume);  
-  NODE_SET_METHOD(target, "mpg123_safe_buffer",         node_mpg123_safe_buffer);
+  v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
+  tpl->SetClassName(Nan::New("Mpg123n").ToLocalChecked());
+  tpl->InstanceTemplate()->SetInternalFieldCount(1);
+
+  Nan::SetPrototypeMethod(tpl, "play", Play);
+  Nan::SetPrototypeMethod(tpl, "stop", Stop);
+  Nan::SetPrototypeMethod(tpl, "pause", Pause);
+  Nan::SetPrototypeMethod(tpl, "jump", Jump);
+  Nan::SetPrototypeMethod(tpl, "volume", Volume);
+
+  constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
+  Nan::Set(target, Nan::New("Mpg123n").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
 }
 
 } // nodelame namespace

@@ -20,8 +20,8 @@
   "dependencies": {
     "bindings": "*",
     "debug": "*",
-    "nan": "^1.6.2",
-    "node-pre-gyp": "0.5.5"
+    "nan": "^2.4.0",
+    "node-pre-gyp": "^0.6.29"
   },
   "scripts": {
     "install": "node-pre-gyp install --fallback-to-build"

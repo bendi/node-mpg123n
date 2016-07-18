@@ -15,19 +15,19 @@
  */
 
 #include <v8.h>
-#include <node.h>
+#include <nan.h>
+#include "node_mpg123.h"
 
-using namespace v8;
-using namespace node;
+using v8::FunctionTemplate;
 
-namespace mpg123n {
+NAN_MODULE_INIT(InitAll) {
+  Nan::Set(target, Nan::New("mpg123_init").ToLocalChecked(),
+    Nan::GetFunction(Nan::New<FunctionTemplate>(mpg123n::Init)).ToLocalChecked());
+  Nan::Set(target, Nan::New("mpg123_exit").ToLocalChecked(),
+    Nan::GetFunction(Nan::New<FunctionTemplate>(mpg123n::Exit)).ToLocalChecked());
 
-void InitMPG123(Handle<Object>);
-
-void Initialize(Handle<Object> target) {
-  InitMPG123(target);
+  // Passing target down to the next NAN_MODULE_INIT
+  mpg123n::Mpg123n::Init(target);
 }
 
-} // mpg123n namespace
-
-NODE_MODULE(bindings, mpg123n::Initialize);
+NODE_MODULE(bindings, InitAll);

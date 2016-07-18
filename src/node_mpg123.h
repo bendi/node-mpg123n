@@ -25,31 +25,51 @@ using namespace v8;
 namespace mpg123n {
 
 enum COMMAND {
-	COMMAND_EMPTY=-1,
-	COMMAND_STOP_AND_PLAY,
-	COMMAND_STOP,
-	COMMAND_PLAY,
-	COMMAND_PAUSE,
-	COMMAND_JUMP
+  COMMAND_EMPTY=-1,
+  COMMAND_STOP_AND_PLAY,
+  COMMAND_STOP,
+  COMMAND_PLAY,
+  COMMAND_PAUSE,
+  COMMAND_JUMP
 };
 
 struct control_generic_loop_data {
   uv_work_t req;
-	mpg123_handle *mh;
-    struct timeval tv;
-    audio_output_t *ao;
-	fd_set fds;
-	int mode;
-	COMMAND command;
-	char* arg;
+  mpg123_handle *mh;
+  struct timeval tv;
+  audio_output_t *ao;
+  fd_set fds;
+  int mode;
+  COMMAND command;
+  char* arg;
 
-	char silent;
-	
-	Persistent<Function> callback;
+  char silent;
+
+  Nan::Persistent<Function> callback;
 };
 
 void node_mpg123_loop_async (uv_work_t *req);
 void node_mpg123_loop_after (uv_work_t *req);
 void player_loop(control_generic_loop_data *data);
+
+NAN_METHOD(Init);
+NAN_METHOD(Exit);
+
+class Mpg123n: public Nan::ObjectWrap {
+public:
+	static NAN_MODULE_INIT(Init);
+private:
+	explicit Mpg123n();
+	~Mpg123n();
+
+	static NAN_METHOD(New);
+	static NAN_METHOD(Play);
+	static NAN_METHOD(Stop);
+	static NAN_METHOD(Pause);
+	static NAN_METHOD(Jump);
+	static NAN_METHOD(Volume);
+	static Nan::Persistent<v8::Function> constructor;
+	control_generic_loop_data *data;
+};
 
 } // mpg123n namespace

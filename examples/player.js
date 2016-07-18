@@ -11,6 +11,9 @@ player.on('stop', function() {
 player.on('pause', function() {
 	console.log('paused!');
 });
+player.on('end', function() {
+	console.log('ended!');
+});
 player.play(process.argv[2]);
 
 // pause/resume

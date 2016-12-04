@@ -41,7 +41,7 @@ struct control_generic_loop_data {
   fd_set fds;
   int mode;
   COMMAND command;
-  char* arg;
+  char* arg;    //TODO: replace by std::string
 
   char silent;
 
@@ -69,7 +69,9 @@ private:
 	static NAN_METHOD(Jump);
 	static NAN_METHOD(Volume);
 	static Nan::Persistent<v8::Function> constructor;
+
 	control_generic_loop_data *data;
+	control_generic_loop_data my_data;
 };
 
 } // mpg123n namespace

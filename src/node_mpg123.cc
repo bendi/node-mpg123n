@@ -57,22 +57,23 @@ Mpg123n::Mpg123n() {
     load_equalizer(mh);
     mpg123_control_init(mh);
 
-    control_generic_loop_data *loop_data = new control_generic_loop_data();
+    control_generic_loop_data *loop_data = &my_data;
+    this->data = loop_data;
     loop_data->mh = mh;
     loop_data->ao = ao;
     loop_data->req.data = loop_data;
     loop_data->silent = 0;
     loop_data->mode = MODE_STOPPED;
     loop_data->command = COMMAND_EMPTY;
-    this->data = loop_data;
   } else {
     char message[256];
-    sprintf("Error occured while initializing mpg123: %d", message);
+    sprintf(message, "Error occured while initializing mpg123: %d", error);
     Nan::ThrowError(message);
   }
 }
 
 Mpg123n::~Mpg123n() {
+    mpg123_delete(my_data.mh);
 }
 
 NAN_METHOD(Mpg123n::New) {
@@ -117,10 +118,14 @@ void node_mpg123_loop_async (uv_work_t *req) {
         //debug("13: Do real play %s", r->arg);
         mpg123_control_play(r->mh, r->arg);
         break;
+      case COMMAND_EMPTY:
+        break;  // GCC found that this value are ommted
+      default:
+        puts("node_mpg123: got unexpected command in switch-case");
     }
     if (clean) {
       if (r->arg != NULL) {
-        delete r->arg;
+        delete [] r->arg;
         r->arg = NULL;
       }
       r->command = COMMAND_EMPTY;
@@ -155,7 +160,7 @@ void node_mpg123_loop_after (uv_work_t *req) {
 
 char* stringArgToStr(const v8::Local<v8::Value> arg) { 
   Nan::Utf8String v8Str(arg);
-  char *cStr = (char*) malloc(strlen(*v8Str) + 1); 
+  char *cStr = new char[strlen(*v8Str) + 1];
   strcpy(cStr, *v8Str); 
   return cStr; 
 }
